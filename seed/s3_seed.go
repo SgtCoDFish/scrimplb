@@ -6,6 +6,10 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/pkg/errors"
 )
 
@@ -17,6 +21,7 @@ type S3Provider struct {
 
 type s3SeedConfig struct {
 	Bucket           string  `json:"bucket"`
+	Region           string  `json:"region"`
 	AvailabilityZone *string `json:"availabilityZone"`
 }
 
@@ -52,12 +57,30 @@ func NewS3Provider(configDir string) (*S3Provider, error) {
 	return &S3Provider{
 		Bucket:           result.Bucket,
 		AvailabilityZone: az,
+		Region:           result.Region,
 	}, nil
 }
 
 // FetchSeed makes a call to S3 to retrieve the seed for the AZ this
 // instance is located in.
 func (s *S3Provider) FetchSeed() (Seed, error) {
+	sess, _ := session.NewSession(&aws.Config{
+		Region: aws.String(s.Region)},
+	)
+	downloader := s3manager.NewDownloader(sess)
+
+	numBytes, err := downloader.Download(file,
+		&s3.GetObjectInput{
+			Bucket: aws.String(s.Bucket),
+			Key:    aws.String(s.AvailabilityZone),
+		})
+
+	if err != nil {
+		return Seed{}, fmt.Errorf("Unable to download item %q, %v", item, err)
+	}
+
+	fmt.Println("Downloaded", file.Name(), numBytes, "bytes")
+
 	return Seed{
 		"test",
 		123,
