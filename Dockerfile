@@ -13,7 +13,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -o scrimplb .
 ###########
 # Stage 2 #
 ###########
-FROM scratch as image
+FROM alpine as image
+
+RUN apk --update upgrade && \
+    apk add curl ca-certificates && \
+    update-ca-certificates && \
+    rm -rf /var/cache/apk/*
 
 COPY --from=build /scrimplb/scrimplb /scrimplb
 

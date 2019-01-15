@@ -2,6 +2,7 @@ package seed
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -17,6 +18,7 @@ import (
 type S3Provider struct {
 	Bucket           string
 	AvailabilityZone string
+	Region           string
 }
 
 type s3SeedConfig struct {
@@ -69,21 +71,23 @@ func (s *S3Provider) FetchSeed() (Seed, error) {
 	)
 	downloader := s3manager.NewDownloader(sess)
 
-	numBytes, err := downloader.Download(file,
+	buf := aws.NewWriteAtBuffer([]byte{})
+
+	numBytes, err := downloader.Download(buf,
 		&s3.GetObjectInput{
 			Bucket: aws.String(s.Bucket),
 			Key:    aws.String(s.AvailabilityZone),
 		})
 
 	if err != nil {
-		return Seed{}, fmt.Errorf("Unable to download item %q, %v", item, err)
+		return Seed{}, fmt.Errorf("Unable to download seed %v", err)
 	}
 
-	fmt.Println("Downloaded", file.Name(), numBytes, "bytes")
+	fmt.Println("Downloaded", numBytes, "bytes")
 
 	return Seed{
-		"test",
-		123,
+		string(buf.Bytes()),
+		9999,
 	}, nil
 }
 

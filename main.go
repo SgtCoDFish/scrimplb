@@ -100,7 +100,7 @@ func initFromSeed(list *memberlist.Memberlist, provider string) {
 	var err error
 
 	if provider == "s3" {
-		p, err = seed.NewS3Provider("./fixture")
+		p, err = seed.NewS3Provider("/fixture")
 
 		if err != nil {
 			panic(err)
