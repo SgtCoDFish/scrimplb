@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -86,7 +87,7 @@ func (s *S3Provider) FetchSeed() (Seed, error) {
 	fmt.Println("Downloaded", numBytes, "bytes")
 
 	return Seed{
-		string(buf.Bytes()),
+		strings.TrimSpace(string(buf.Bytes())),
 		9999,
 	}, nil
 }

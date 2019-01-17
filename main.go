@@ -57,7 +57,7 @@ If you specify "manual", you must specify "-manual-ip" to give a known IP to con
 	flag.Parse()
 
 	memberlistConfig := memberlist.DefaultLANConfig()
-	memberlistConfig.BindAddr = "[::]"
+	memberlistConfig.BindAddr = "0.0.0.0"
 	memberlistConfig.BindPort = ScrimpPort
 
 	list, err := memberlist.Create(memberlistConfig)
