@@ -61,4 +61,4 @@ docker-image:
 
 .PHONY: docker-run-1
 docker-run-lb: docker-network
-	docker run -it --rm --network scrimplb6 scrimplb:latest
+	docker run -it --rm --network scrimplb6 scrimplb:latest -lb

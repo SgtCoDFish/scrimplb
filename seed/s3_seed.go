@@ -81,7 +81,7 @@ func (s *S3Provider) FetchSeed() (Seed, error) {
 		})
 
 	if err != nil {
-		return Seed{}, fmt.Errorf("Unable to download seed %v", err)
+		return Seed{}, fmt.Errorf("unable to download seed %v", err)
 	}
 
 	fmt.Println("Downloaded", numBytes, "bytes")

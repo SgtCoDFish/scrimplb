@@ -1,4 +1,5 @@
 # Scrimp LB
+## Motivation
 For a production workload in the cloud, we'd naturally gravitate towards cloud solutions such as the [ELB](https://aws.amazon.com/elasticloadbalancing/pricing/) in AWS, or DigitalOcean's [Load Balancer](https://www.digitalocean.com/products/load-balancer/).
 
 Those are great at what they do, and for the vast majority of prod workloads they're probably the right way to go. Unfortunately, they're quite expensive for a pet project or for a hobby.
@@ -22,11 +23,13 @@ Another thing to bear in mind is that for a side project, the network and cpu ut
 
 
 ## Design
-A public-facing "load balancer" sits in front of privately-networked "backend" instances which run at least one application.
+A public-facing "load balancer" sits in front of privately-networked "backend" instances, each of which which run at least one application.
 
-All instances are networked together in a gossip cluster. Membership of the cluster implies that an instance is either a load balancer or a backend server, although the load balancer might not route to to the backend server without first having received confirmation of what applications are provided by that server via a broadcast exchange.
+All instances are networked together in a gossip cluster. Membership of the cluster implies that an instance is either a load balancer or a backend server, although the load balancer might not route to to the backend server without first having confirmed of what applications are provided by that server via a broadcast exchange.
 
 Ideally, a load balancer is provisioned first (which could be a NAT instance in an AWS VPC for example, or a cheap VPS generally). The load balancer's IP is pushed into some "seed source" (e.g. S3 - but it's easy to write new seed provisioners).
+
+The load balancers regularly - and with jitter - push their IPs into the seed source they're configured with. This is always safe with one load balancer, and with multiple load balancers we accept the risk of overwriting another load balancer's write since ultimately backend clients only need one IP into order to bootstrap into the cluster.
 
 When a backend instance is brought up, a seed provisioner fetches the load balancer's IP from the source, and joins the cluster using the fetched IP.
 

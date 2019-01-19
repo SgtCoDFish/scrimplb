@@ -2,11 +2,15 @@ package seed
 
 // Seed contains the details for a client to connect to a load balancer
 // without requiring multicast or another type of service discovery. This
-// allows us to bootstrap the smudge cluster, used by a Load Balancer to
-// detect backend instances
+// allows us to bootstrap the gossip cluster
 type Seed struct {
-	Address string
-	Port    int
+	Address string `json:"address"`
+	Port    int    `json:"port"`
+}
+
+// Seeds is a collection of seeds in one file.
+type Seeds struct {
+	Seeds []Seed `json:"seeds"`
 }
 
 // Provider abstracts the concept of fetching a new remote seed, to avoid
