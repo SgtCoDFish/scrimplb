@@ -1,0 +1,3 @@
+FROM scrimp
+
+COPY ./fixture/scrimp-lb.json /scrimp-lb.json

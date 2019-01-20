@@ -5,18 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"strings"
 	"sync"
 
+	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/seed"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/pkg/errors"
 )
-
-// ScrimpPort is the port used by ScrimpLb for new listeners
-const ScrimpPort = 9999
 
 type scrimpConfig struct {
 	IsLoadBalancer bool              `json:"lb"`
@@ -39,7 +36,7 @@ func main() {
 
 	config := scrimpConfig{
 		BindAddress:    "0.0.0.0",
-		Port:           ScrimpPort,
+		Port:           constants.DefaultPort,
 		IsLoadBalancer: false,
 	}
 	err = json.Unmarshal(data, &config)
@@ -63,10 +60,12 @@ func main() {
 	localNode := list.LocalNode()
 	fmt.Println("Listening as ", localNode.Name, localNode.Addr)
 
-	err = initFromSeed(list, &config)
+	if config.Provider != "" {
+		err = initFromSeed(list, &config)
 
-	if err != nil {
-		panic(err)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	wg := sync.WaitGroup{}
@@ -74,53 +73,44 @@ func main() {
 	wg.Wait()
 }
 
-func initFromIP(list *memberlist.Memberlist, ip string) error {
-	_, _, err := net.ParseCIDR(ip)
-
-	if err != nil {
-		return errors.Wrapf(err, "invalid IP: %s", ip)
-	}
-
-	_, err = list.Join([]string{ip})
-
-	if err != nil {
-		return errors.Wrapf(err, "couldn't initialise with IP: %s", ip)
-	}
-
-	return nil
-}
-
 func initFromSeed(list *memberlist.Memberlist, config *scrimpConfig) error {
 	var p seed.Provider
 	var err error
 
 	if config.Provider == "manual" {
-		ip, ok := config.ProviderConfig["manual-ip"]
-
-		if !ok {
-			return errors.New("missing manual-ip in provider-config for manual provider type")
-		}
-
-		return initFromIP(list, ip)
-	}
-
-	if config.Provider == "s3" {
-		p, err = seed.NewS3Provider("/fixture")
+		p, err = seed.NewManualProvider(config.ProviderConfig)
 
 		if err != nil {
-			return err
+			return errors.Wrap(err, "couldn't initialize manual provider")
+		}
+	} else if config.Provider == "s3" {
+		p, err = seed.NewS3Provider(config.ProviderConfig)
+
+		if err != nil {
+			return errors.Wrap(err, "couldn't initialize s3 provider")
 		}
 	} else {
 		return fmt.Errorf("unrecognised provider: %s", config.Provider)
 	}
 
-	s, err := p.FetchSeed()
+	seedList, err := p.FetchSeed()
 
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch seed during initialisation")
 	}
 
-	return initFromIP(list, s.Address)
+	var ips []string
+	for _, s := range seedList.Seeds {
+		ips = append(ips, s.Address)
+	}
+
+	_, err = list.Join(ips)
+
+	if err != nil {
+		return errors.Wrap(err, "couldn't join cluster")
+	}
+
+	return nil
 }
 
 // func enumerateNet() {

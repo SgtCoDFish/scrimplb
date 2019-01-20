@@ -56,9 +56,21 @@ docker-network:
 
 .PHONY: docker-image
 docker-image:
-	docker build -t scrimplb:latest .
+	docker build --tag scrimp -t scrimp:latest .
+
+.PHONY: docker-lb-image
+docker-lb-image: docker-image
+	docker build -f Dockerfile.lb --pull=false -t scrimp-lb:latest .
+
+.PHONY: docker-backend-image
+docker-backend-image: docker-image
+	docker build -f Dockerfile.backend --pull=false -t scrimp-backend:latest .
+
+.PHONY: docker-run-lb
+docker-run-lb: docker-network docker-lb-image
+	docker run -it --rm --network scrimplb6 --ip6 "fd02:c0df:1500:1::10" scrimp-lb:latest -config-file /scrimp-lb.json
 
 
-.PHONY: docker-run-1
-docker-run-lb: docker-network
-	docker run -it --rm --network scrimplb6 scrimplb:latest -lb
+.PHONY: docker-run-backend
+docker-run-backend: docker-network docker-backend-image
+	docker run -it --rm --network scrimplb6 scrimp-backend:latest -config-file /scrimp-backend.json
