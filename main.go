@@ -7,20 +7,30 @@ import (
 	"io/ioutil"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sgtcodfish/scrimplb/constants"
+	"github.com/sgtcodfish/scrimplb/pusher"
 	"github.com/sgtcodfish/scrimplb/seed"
+
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/pkg/errors"
 )
 
 type scrimpConfig struct {
-	IsLoadBalancer bool              `json:"lb"`
-	Provider       string            `json:"provider"`
-	BindAddress    string            `json:"bind-address"`
-	Port           int               `json:"port"`
-	ProviderConfig map[string]string `json:"provider-config"`
+	IsLoadBalancer     bool                   `json:"lb"`
+	Provider           string                 `json:"provider"`
+	BindAddress        string                 `json:"bind-address"`
+	Port               int                    `json:"port"`
+	ProviderConfig     map[string]interface{} `json:"provider-config"`
+	LoadBalancerConfig map[string]interface{} `json:"load-balancer-config"`
+}
+
+type loadBalancerConfig struct {
+	Duration string
+	Jitter   int64
 }
 
 func main() {
@@ -66,6 +76,30 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	if config.IsLoadBalancer {
+		var lbConfig loadBalancerConfig
+
+		err = mapstructure.Decode(config.LoadBalancerConfig, &lbConfig)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if lbConfig.Duration == "" {
+			panic(errors.New("missing required duration in load balancer config"))
+		}
+
+		duration, err := time.ParseDuration(lbConfig.Duration)
+
+		if err != nil {
+			panic(err)
+		}
+
+		pusher := pusher.NewPusher(duration, lbConfig.Jitter)
+
+		go pusher.Loop()
 	}
 
 	wg := sync.WaitGroup{}

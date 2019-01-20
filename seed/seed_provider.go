@@ -5,7 +5,7 @@ package seed
 // allows us to bootstrap the gossip cluster
 type Seed struct {
 	Address string `json:"address"`
-	Port    int    `json:"port"`
+	Port    string `json:"port"`
 }
 
 // Seeds is a collection of seeds in one file.

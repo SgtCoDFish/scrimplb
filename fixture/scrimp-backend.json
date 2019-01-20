@@ -2,6 +2,6 @@
 	"lb": false,
 	"provider": "manual",
 	"provider-config": {
-		"manual-ip": "[fd02:c0df:1500:1::10]"
+		"ip": "[fd02:c0df:1500:1::10]"
 	}
 }

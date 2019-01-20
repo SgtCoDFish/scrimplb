@@ -10,6 +10,7 @@ require (
 	github.com/hashicorp/go-sockaddr v0.0.0-20190103214136-e92cdb5343bb // indirect
 	github.com/hashicorp/memberlist v0.1.0
 	github.com/miekg/dns v1.1.3 // indirect
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/pkg/errors v0.8.1
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc // indirect
