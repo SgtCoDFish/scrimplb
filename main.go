@@ -5,15 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/pusher"
 	"github.com/sgtcodfish/scrimplb/seed"
-
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/pkg/errors"
@@ -22,9 +22,11 @@ import (
 type scrimpConfig struct {
 	IsLoadBalancer     bool                   `json:"lb"`
 	Provider           string                 `json:"provider"`
+	Pusher             string                 `json:"pusher"`
 	BindAddress        string                 `json:"bind-address"`
 	Port               int                    `json:"port"`
 	ProviderConfig     map[string]interface{} `json:"provider-config"`
+	PusherConfig       map[string]interface{} `json:"pusher-config"`
 	LoadBalancerConfig map[string]interface{} `json:"load-balancer-config"`
 }
 
@@ -35,8 +37,14 @@ type loadBalancerConfig struct {
 
 func main() {
 	var configFile string
+	var shouldEnumerateNetwork bool
 	flag.StringVar(&configFile, "config-file", "./scrimp.json", "Location of a config file to use")
+	flag.BoolVar(&shouldEnumerateNetwork, "enumerate-network", false, "Print all detected addresses")
 	flag.Parse()
+
+	if shouldEnumerateNetwork {
+		enumerateNetworkInterfaces()
+	}
 
 	data, err := ioutil.ReadFile(configFile)
 
@@ -79,27 +87,7 @@ func main() {
 	}
 
 	if config.IsLoadBalancer {
-		var lbConfig loadBalancerConfig
-
-		err = mapstructure.Decode(config.LoadBalancerConfig, &lbConfig)
-
-		if err != nil {
-			panic(err)
-		}
-
-		if lbConfig.Duration == "" {
-			panic(errors.New("missing required duration in load balancer config"))
-		}
-
-		duration, err := time.ParseDuration(lbConfig.Duration)
-
-		if err != nil {
-			panic(err)
-		}
-
-		pusher := pusher.NewPusher(duration, lbConfig.Jitter)
-
-		go pusher.Loop()
+		initFromPusher(&config)
 	}
 
 	wg := sync.WaitGroup{}
@@ -147,23 +135,69 @@ func initFromSeed(list *memberlist.Memberlist, config *scrimpConfig) error {
 	return nil
 }
 
-// func enumerateNet() {
-// 	fmt.Println("Enumerating network interfaces:")
-// 	addrs, err := net.InterfaceAddrs()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-//
-// 	for _, a := range addrs {
-// 		address, _, err := net.ParseCIDR(a.String())
-//
-// 		if err != nil {
-// 			panic(err)
-// 		}
-//
-// 		fmt.Println("\t", address)
-// 	}
-// }
+func initFromPusher(config *scrimpConfig) error {
+	var lbConfig loadBalancerConfig
+
+	err := mapstructure.Decode(config.LoadBalancerConfig, &lbConfig)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if lbConfig.Duration == "" {
+		panic(errors.New("missing required duration in load balancer config"))
+	}
+
+	duration, err := time.ParseDuration(lbConfig.Duration)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if config.Pusher == "" {
+		config.Pusher = "dummy"
+	}
+
+	var pusherObject pusher.Pusher
+	switch config.Pusher {
+	case "dummy":
+		pusherObject = pusher.DummyPusher{}
+		err = nil
+
+	case "s3":
+		pusherObject, err = pusher.NewS3Pusher(config.PusherConfig)
+
+	default:
+		err = errors.Errorf("unrecognised pusher type %v", config.Pusher)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	pushTask := pusher.NewPushTask(pusherObject, duration, lbConfig.Jitter)
+	go pushTask.Loop()
+
+	return nil
+}
+
+func enumerateNetworkInterfaces() {
+	fmt.Println("Enumerated network interfaces:")
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, a := range addrs {
+		address, _, err := net.ParseCIDR(a.String())
+
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(" - ", address)
+	}
+}
 
 // 	flag.StringVar(&provider, "seed-provider",
 // 		"",
