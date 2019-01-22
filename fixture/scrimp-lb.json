@@ -1,7 +1,7 @@
 {
 	"lb": true,
 	"load-balancer-config": {
-		"duration": "1m",
+		"duration": "5s",
 		"jitter": 10000
 	}
 }

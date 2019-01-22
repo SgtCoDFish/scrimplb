@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,11 +23,9 @@ import (
 type scrimpConfig struct {
 	IsLoadBalancer     bool                   `json:"lb"`
 	Provider           string                 `json:"provider"`
-	Pusher             string                 `json:"pusher"`
 	BindAddress        string                 `json:"bind-address"`
-	Port               int                    `json:"port"`
+	Port               string                 `json:"port"`
 	ProviderConfig     map[string]interface{} `json:"provider-config"`
-	PusherConfig       map[string]interface{} `json:"pusher-config"`
 	LoadBalancerConfig map[string]interface{} `json:"load-balancer-config"`
 }
 
@@ -67,7 +66,14 @@ func main() {
 
 	memberlistConfig := memberlist.DefaultLANConfig()
 	memberlistConfig.BindAddr = config.BindAddress
-	memberlistConfig.BindPort = config.Port
+
+	intPort, err := strconv.Atoi(config.Port)
+
+	if err != nil {
+		panic(err)
+	}
+
+	memberlistConfig.BindPort = intPort
 
 	list, err := memberlist.Create(memberlistConfig)
 
@@ -87,7 +93,7 @@ func main() {
 	}
 
 	if config.IsLoadBalancer {
-		initFromPusher(&config)
+		initPusher(&config)
 	}
 
 	wg := sync.WaitGroup{}
@@ -123,7 +129,7 @@ func initFromSeed(list *memberlist.Memberlist, config *scrimpConfig) error {
 
 	var ips []string
 	for _, s := range seedList.Seeds {
-		ips = append(ips, s.Address)
+		ips = append(ips, s.Address+":"+s.Port)
 	}
 
 	_, err = list.Join(ips)
@@ -135,7 +141,7 @@ func initFromSeed(list *memberlist.Memberlist, config *scrimpConfig) error {
 	return nil
 }
 
-func initFromPusher(config *scrimpConfig) error {
+func initPusher(config *scrimpConfig) error {
 	var lbConfig loadBalancerConfig
 
 	err := mapstructure.Decode(config.LoadBalancerConfig, &lbConfig)
@@ -154,28 +160,30 @@ func initFromPusher(config *scrimpConfig) error {
 		panic(err)
 	}
 
-	if config.Pusher == "" {
-		config.Pusher = "dummy"
+	if config.Provider == "" {
+		config.Provider = "dummy"
 	}
 
-	var pusherObject pusher.Pusher
-	switch config.Pusher {
+	var providerObject seed.Provider
+	switch config.Provider {
 	case "dummy":
-		pusherObject = pusher.DummyPusher{}
-		err = nil
+		providerObject, err = seed.NewDummyProvider(config.ProviderConfig)
+
+	case "manual":
+		providerObject, err = seed.NewManualProvider(config.ProviderConfig)
 
 	case "s3":
-		pusherObject, err = pusher.NewS3Pusher(config.PusherConfig)
+		providerObject, err = seed.NewS3Provider(config.ProviderConfig)
 
 	default:
-		err = errors.Errorf("unrecognised pusher type %v", config.Pusher)
+		err = errors.Errorf("unrecognised provider type %v", config.Provider)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	pushTask := pusher.NewPushTask(pusherObject, duration, lbConfig.Jitter)
+	pushTask := pusher.NewPushTask(providerObject, duration, lbConfig.Jitter)
 	go pushTask.Loop()
 
 	return nil

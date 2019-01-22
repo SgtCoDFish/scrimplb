@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+	"github.com/sgtcodfish/scrimplb/constants"
 )
 
 // S3Provider can retrieve a seed from an object in an S3 bucket
@@ -17,6 +18,7 @@ type S3Provider struct {
 	Bucket           string
 	AvailabilityZone string
 	Region           string
+	Key              string
 
 	// accessKey       string
 	// secretAccessKey string
@@ -42,6 +44,10 @@ func NewS3Provider(config map[string]interface{}) (*S3Provider, error) {
 		return nil, errors.New("missing required 'region' in provider config")
 	}
 
+	if provider.Key == "" {
+		provider.Key = constants.DefaultKey
+	}
+
 	return &provider, nil
 }
 
@@ -58,7 +64,7 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 	numBytes, err := downloader.Download(buf,
 		&s3.GetObjectInput{
 			Bucket: aws.String(s.Bucket),
-			Key:    aws.String(s.AvailabilityZone),
+			Key:    aws.String(s.Key),
 		})
 
 	if err != nil {
@@ -75,6 +81,10 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 			},
 		},
 	}, nil
+}
+
+func (s *S3Provider) PushSeed() error {
+	return errors.New("nyi")
 }
 
 // func deduceInstanceAZ() (string, error) {

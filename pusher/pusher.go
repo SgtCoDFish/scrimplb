@@ -4,25 +4,21 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
-)
 
-// Pusher is an interface which abstracts pushing IP data to a remote source to
-// aid new instances joining the cluster
-type Pusher interface {
-	PushState() error
-}
+	"github.com/sgtcodfish/scrimplb/seed"
+)
 
 // PushTask runs a Pusher on a regular, config-defined basis
 type PushTask struct {
-	pusher                Pusher
+	provider              seed.Provider
 	sleepTime             time.Duration
 	maxJitterMilliseconds int64
 }
 
 // NewPushTask creates a new PushTask with the given config
-func NewPushTask(pusher Pusher, sleepTime time.Duration, maxJitterMilliseconds int64) *PushTask {
+func NewPushTask(provider seed.Provider, sleepTime time.Duration, maxJitterMilliseconds int64) *PushTask {
 	return &PushTask{
-		pusher,
+		provider,
 		sleepTime,
 		maxJitterMilliseconds,
 	}
@@ -37,10 +33,10 @@ func (p *PushTask) Loop() {
 			time.Sleep(time.Millisecond * time.Duration(rand.Int63n(p.maxJitterMilliseconds)))
 		}
 
-		err := p.pusher.PushState()
+		err := p.provider.PushSeed()
 
 		if err != nil {
-			fmt.Printf("failed to push state: %v\n", err)
+			fmt.Printf("failed to push seed: %v\n", err)
 		}
 	}
 }

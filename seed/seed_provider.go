@@ -13,8 +13,9 @@ type Seeds struct {
 	Seeds []Seed `json:"seeds"`
 }
 
-// Provider abstracts the concept of fetching seeds, to avoid
+// Provider abstracts the concept of fetching and pushing seeds, to avoid
 // depending on the details of any one cloud or hosting platform.
 type Provider interface {
 	FetchSeed() (Seeds, error)
+	PushSeed() error
 }
