@@ -8,7 +8,7 @@ import (
 
 // ManualProvider always returns the same IP which was provided in config
 type ManualProvider struct {
-	Ip   string
+	IP   string
 	Port string
 }
 
@@ -22,7 +22,7 @@ func NewManualProvider(config map[string]interface{}) (*ManualProvider, error) {
 		return nil, errors.Wrap(err, "couldn't parse manual provider from provider config")
 	}
 
-	if provider.Ip == "" {
+	if provider.IP == "" {
 		return nil, errors.Wrap(err, "couldn't parse ip from provider config")
 	}
 
@@ -38,7 +38,7 @@ func (m *ManualProvider) FetchSeed() (Seeds, error) {
 	return Seeds{
 		Seeds: []Seed{
 			{
-				m.Ip,
+				m.IP,
 				m.Port,
 			},
 		},

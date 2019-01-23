@@ -1,4 +1,4 @@
-package pusher
+package worker
 
 import (
 	"fmt"

@@ -83,6 +83,7 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 	}, nil
 }
 
+// PushSeed pushes local node details to an S3 bucket so that future nodes can join
 func (s *S3Provider) PushSeed() error {
 	return errors.New("nyi")
 }

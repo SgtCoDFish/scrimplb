@@ -13,8 +13,8 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/sgtcodfish/scrimplb/constants"
-	"github.com/sgtcodfish/scrimplb/pusher"
 	"github.com/sgtcodfish/scrimplb/seed"
+	"github.com/sgtcodfish/scrimplb/worker"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/pkg/errors"
@@ -75,6 +75,11 @@ func main() {
 
 	memberlistConfig.BindPort = intPort
 
+	delegate := worker.LoadBalancerDelegate{}
+	if config.IsLoadBalancer {
+		memberlistConfig.Delegate = &delegate
+	}
+
 	list, err := memberlist.Create(memberlistConfig)
 
 	if err != nil {
@@ -93,7 +98,21 @@ func main() {
 	}
 
 	if config.IsLoadBalancer {
-		initPusher(&config)
+		err = initPusher(&config)
+
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		time.Sleep(10 * time.Second)
+
+		for _, n := range list.Members() {
+			err = list.SendReliable(n, []byte("hi!"))
+
+			if err != nil {
+				fmt.Printf("%v\n", err)
+			}
+		}
 	}
 
 	wg := sync.WaitGroup{}
@@ -183,7 +202,7 @@ func initPusher(config *scrimpConfig) error {
 		return err
 	}
 
-	pushTask := pusher.NewPushTask(providerObject, duration, lbConfig.Jitter)
+	pushTask := worker.NewPushTask(providerObject, duration, lbConfig.Jitter)
 	go pushTask.Loop()
 
 	return nil
