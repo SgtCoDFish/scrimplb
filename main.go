@@ -21,6 +21,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+type LoadBalancerEventDelegate struct {
+}
+
+func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
+	fmt.Printf("joined: %s\n", string(node.Meta))
+}
+
+func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
+}
+
+func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
+}
+
 func main() {
 	var configFile string
 	var shouldEnumerateNetwork bool
@@ -66,6 +79,12 @@ func main() {
 	if config.IsLoadBalancer {
 		delegate := worker.LoadBalancerDelegate{}
 		memberlistConfig.Delegate = &delegate
+
+		eventDelegate := LoadBalancerEventDelegate{}
+		memberlistConfig.Events = &eventDelegate
+	} else {
+		delegate := worker.BackendDelegate{}
+		memberlistConfig.Delegate = &delegate
 	}
 
 	list, err := memberlist.Create(memberlistConfig)
@@ -75,7 +94,7 @@ func main() {
 	}
 
 	localNode := list.LocalNode()
-	fmt.Println("Listening as ", localNode.Name, localNode.Addr)
+	fmt.Println("Listening as", localNode.Name, localNode.Addr)
 
 	if config.Provider != "" {
 		fmt.Printf("Joining cluster with provider '%s'\n", config.Provider)
@@ -166,17 +185,17 @@ func initPusher(config *types.ScrimpConfig) error {
 	err := mapstructure.Decode(config.LoadBalancerConfig, &lbConfig)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	if lbConfig.Duration == "" {
-		panic(errors.New("missing required duration in load balancer config"))
+		return errors.New("missing required duration in load balancer config")
 	}
 
 	duration, err := time.ParseDuration(lbConfig.Duration)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	if config.Provider == "" {

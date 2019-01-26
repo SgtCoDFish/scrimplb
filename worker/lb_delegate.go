@@ -14,9 +14,10 @@ func NewLoadBalancerDelegate(ch chan<- string) *LoadBalancerDelegate {
 	}
 }
 
-// NodeMeta is ignored for LoadBalancerDelegate.
+// NodeMeta returns metadata about this node
 func (d *LoadBalancerDelegate) NodeMeta(limit int) []byte {
-	return nil
+	fmt.Println("handling NodeMeta for LB")
+	return []byte(`{"type": "load-balancer"}`)
 }
 
 // NotifyMsg receives messages from other cluster members. If the message was intended for a Load Balancer,
