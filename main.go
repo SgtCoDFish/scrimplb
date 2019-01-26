@@ -14,25 +14,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/seed"
+	"github.com/sgtcodfish/scrimplb/types"
 	"github.com/sgtcodfish/scrimplb/worker"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/pkg/errors"
 )
-
-type scrimpConfig struct {
-	IsLoadBalancer     bool                   `json:"lb"`
-	Provider           string                 `json:"provider"`
-	BindAddress        string                 `json:"bind-address"`
-	Port               string                 `json:"port"`
-	ProviderConfig     map[string]interface{} `json:"provider-config"`
-	LoadBalancerConfig map[string]interface{} `json:"load-balancer-config"`
-}
-
-type loadBalancerConfig struct {
-	Duration string
-	Jitter   int64
-}
 
 func main() {
 	var configFile string
@@ -51,10 +38,11 @@ func main() {
 		panic(err)
 	}
 
-	config := scrimpConfig{
+	config := types.ScrimpConfig{
 		BindAddress:    "0.0.0.0",
 		Port:           constants.DefaultPort,
 		IsLoadBalancer: false,
+		SyncPeriod:     "30s",
 	}
 	err = json.Unmarshal(data, &config)
 
@@ -75,8 +63,8 @@ func main() {
 
 	memberlistConfig.BindPort = intPort
 
-	delegate := worker.LoadBalancerDelegate{}
 	if config.IsLoadBalancer {
+		delegate := worker.LoadBalancerDelegate{}
 		memberlistConfig.Delegate = &delegate
 	}
 
@@ -90,29 +78,24 @@ func main() {
 	fmt.Println("Listening as ", localNode.Name, localNode.Addr)
 
 	if config.Provider != "" {
+		fmt.Printf("Joining cluster with provider '%s'\n", config.Provider)
 		err = initFromSeed(list, &config)
 
 		if err != nil {
 			panic(err)
 		}
+	} else {
+		fmt.Println("Initialised cluster as no provider was given.")
 	}
 
 	if config.IsLoadBalancer {
-		err = initPusher(&config)
-
-		if err != nil {
-			panic(err)
-		}
+		err = initLoadBalancer(&config)
 	} else {
-		time.Sleep(10 * time.Second)
+		err = initBackend(&config)
+	}
 
-		for _, n := range list.Members() {
-			err = list.SendReliable(n, []byte("hi!"))
-
-			if err != nil {
-				fmt.Printf("%v\n", err)
-			}
-		}
+	if err != nil {
+		panic(err)
 	}
 
 	wg := sync.WaitGroup{}
@@ -120,7 +103,24 @@ func main() {
 	wg.Wait()
 }
 
-func initFromSeed(list *memberlist.Memberlist, config *scrimpConfig) error {
+func initLoadBalancer(config *types.ScrimpConfig) error {
+	fmt.Println("initializing load balancer")
+
+	err := initPusher(config)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func initBackend(config *types.ScrimpConfig) error {
+	fmt.Println("initializing backend")
+	return nil
+}
+
+func initFromSeed(list *memberlist.Memberlist, config *types.ScrimpConfig) error {
 	var p seed.Provider
 	var err error
 
@@ -160,8 +160,8 @@ func initFromSeed(list *memberlist.Memberlist, config *scrimpConfig) error {
 	return nil
 }
 
-func initPusher(config *scrimpConfig) error {
-	var lbConfig loadBalancerConfig
+func initPusher(config *types.ScrimpConfig) error {
+	var lbConfig types.LoadBalancerConfig
 
 	err := mapstructure.Decode(config.LoadBalancerConfig, &lbConfig)
 

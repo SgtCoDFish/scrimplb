@@ -34,3 +34,35 @@ The load balancers regularly - and with jitter - push their IPs into the seed so
 When a backend instance is brought up, a seed provisioner fetches the load balancer's IP from the source, and joins the cluster using the fetched IP.
 
 After joining, a backend server must announce its supported applications to at least one load balancer, which can then share amongst other load balancers as needed. If the load balancer supports the application type, it adds the backend to its list of upstreams (think e.g. how nginx does load balancing) and soft-reloads itself.
+
+## Components
+### Load Balancer
+On creation:
+- If no provider: Create cluster
+- If provider: Join cluster
+- In any case:
+- - Start listening for cluster events (join/leave/suspect)
+
+Regularly:
+- Publish IP for providers
+
+On cluster join event:
+- Contact newly joined instance requesting application details, listen for response
+- On response, check if the new instance is a load balancer or a backend
+- - If the new member is a load balancer: ignore it
+- - If the new member is a backend: add it to a list of registered backends along with its applications. Run load balancer config generation.
+
+On cluster leave event:
+- If the member that left is a known backend: Remove from registered backends, run load balancer config generation.
+- If the member that left is a known load balancer: Ignore
+- If the member is not known (i.e. it hasn't responded to queries by this load balancer about its application support): Stop querying it
+
+### Backend
+On creation:
+- If no provider: Create cluster
+- If provider: Join cluster
+- In any case:
+- - Start listening for requests for details from load balancers
+
+On request for load balancer application:
+- Respond with JSON detailing applications on the backend
