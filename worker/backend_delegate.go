@@ -17,7 +17,6 @@ func NewBackendDelegate(ch chan<- string) *BackendDelegate {
 
 // NodeMeta returns metadata about this node
 func (b *BackendDelegate) NodeMeta(limit int) []byte {
-	fmt.Println("handling NodeMeta for backend")
 	return []byte(`{"type": "backend"}`)
 }
 

@@ -1,3 +1,0 @@
-FROM scrimp
-
-COPY ./fixture/scrimp-backend.json /scrimp-backend.json

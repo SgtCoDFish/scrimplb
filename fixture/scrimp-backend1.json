@@ -1,0 +1,18 @@
+{
+	"lb": false,
+	"provider": "manual",
+	"provider-config": {
+		"ip": "[fd02:c0df:1500:1::10]"
+	},
+	"backend-config": {
+		"applications": [{
+			"name": "nginx",
+			"port": "80",
+			"domain": "nginx.example.com"
+		}, {
+			"name": "secure-nginx",
+			"port": "443",
+			"domain": "secure-nginx.example.com"
+		}]
+	}
+}

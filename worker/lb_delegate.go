@@ -16,7 +16,6 @@ func NewLoadBalancerDelegate(ch chan<- string) *LoadBalancerDelegate {
 
 // NodeMeta returns metadata about this node
 func (d *LoadBalancerDelegate) NodeMeta(limit int) []byte {
-	fmt.Println("handling NodeMeta for LB")
 	return []byte(`{"type": "load-balancer"}`)
 }
 

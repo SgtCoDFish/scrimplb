@@ -47,8 +47,7 @@ Regularly:
 - Publish IP for providers
 
 On cluster join event:
-- Contact newly joined instance requesting application details, listen for response
-- On response, check if the new instance is a load balancer or a backend
+- Check if the new instance (via Node metadata) is a load balancer or a backend
 - - If the new member is a load balancer: ignore it
 - - If the new member is a backend: add it to a list of registered backends along with its applications. Run load balancer config generation.
 

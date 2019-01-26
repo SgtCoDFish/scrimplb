@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -25,13 +26,15 @@ type LoadBalancerEventDelegate struct {
 }
 
 func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
-	fmt.Printf("joined: %s\n", string(node.Meta))
+	log.Printf("joined: %s\n", string(node.Meta))
 }
 
 func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
+	log.Printf("left: %s\n", string(node.Meta))
 }
 
 func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
+	log.Printf("update: %s\n", string(node.Meta))
 }
 
 func main() {
@@ -67,6 +70,10 @@ func main() {
 
 	memberlistConfig := memberlist.DefaultLANConfig()
 	memberlistConfig.BindAddr = config.BindAddress
+	memberlistConfig.TCPTimeout = 4 * time.Second
+	memberlistConfig.SuspicionMult = 2
+	memberlistConfig.SuspicionMaxTimeoutMult = 3
+	memberlistConfig.RetransmitMult = 2
 
 	intPort, err := strconv.Atoi(config.Port)
 
