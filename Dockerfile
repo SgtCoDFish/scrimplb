@@ -1,17 +1,29 @@
 ###########
 # Stage 1 #
 ###########
-FROM golang:1.11-alpine as build
+FROM golang:1.11-alpine as build_base
 
 RUN apk add git
 
+ENV GO111MODULE=on
+
 WORKDIR /scrimplb
-COPY . /scrimplb
+COPY ./go.mod .
+COPY ./go.sum .
+
+RUN go mod download
+
+###########
+# Stage 2 #
+###########
+FROM build_base as build
+
+COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o scrimplb .
 
 ###########
-# Stage 2 #
+# Stage 3 #
 ###########
 FROM alpine as image
 
