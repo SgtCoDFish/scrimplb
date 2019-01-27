@@ -2,13 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/sgtcodfish/scrimplb/seed"
 	"github.com/sgtcodfish/scrimplb/types"
 	"github.com/sgtcodfish/scrimplb/worker"
 
@@ -21,10 +19,13 @@ type lbState struct {
 	memberLock sync.RWMutex
 }
 
+// LoadBalancerEventDelegate listens for events and updates load balancer state
+// based on node metadata
 type LoadBalancerEventDelegate struct {
 	State lbState
 }
 
+// NotifyJoin adds new nodes to load balancer state
 func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
 	d.State.memberLock.Lock()
 	defer d.State.memberLock.Unlock()
@@ -32,6 +33,7 @@ func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
 	log.Printf("joined: %s\n", string(node.Meta))
 }
 
+// NotifyLeave removes existing nodes from load balancer state
 func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
 	d.State.memberLock.Lock()
 	defer d.State.memberLock.Unlock()
@@ -39,6 +41,7 @@ func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
 	log.Printf("left: %s\n", string(node.Meta))
 }
 
+// NotifyUpdate updates existing nodes in load balancer state
 func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
 	d.State.memberLock.Lock()
 	defer d.State.memberLock.Unlock()
@@ -49,8 +52,11 @@ func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
 func main() {
 	var configFile string
 	var shouldEnumerateNetwork bool
+	var initCluster bool
+
 	flag.StringVar(&configFile, "config-file", "./scrimp.json", "Location of a config file to use")
 	flag.BoolVar(&shouldEnumerateNetwork, "enumerate-network", false, "Print all detected addresses")
+	flag.BoolVar(&initCluster, "init-cluster", false, "Initialise the cluster")
 	flag.Parse()
 
 	if shouldEnumerateNetwork {
@@ -102,17 +108,19 @@ func main() {
 	}
 
 	localNode := list.LocalNode()
-	fmt.Println("Listening as", localNode.Name, localNode.Addr)
+	log.Println("listening as", localNode.Name, localNode.Addr)
 
-	if config.Provider != "" {
-		fmt.Printf("Joining cluster with provider '%s'\n", config.Provider)
+	if initCluster {
+		log.Println("initializing cluster as -init-cluster was given")
+	} else if config.ProviderName == "" {
+		handleErr(errors.New("no provider given and -init-cluster not specified"))
+	} else {
+		log.Printf("joining cluster with provider '%s'\n", config.ProviderName)
 		err = initFromSeed(list, config)
 
 		if err != nil {
 			handleErr(err)
 		}
-	} else {
-		fmt.Println("Initialised cluster as no provider was given.")
 	}
 
 	if config.IsLoadBalancer {
@@ -131,7 +139,7 @@ func main() {
 }
 
 func initLoadBalancer(config *types.ScrimpConfig) error {
-	fmt.Println("initializing load balancer")
+	log.Println("initializing load balancer")
 
 	err := initPusher(config)
 
@@ -143,34 +151,15 @@ func initLoadBalancer(config *types.ScrimpConfig) error {
 }
 
 func initBackend(config *types.ScrimpConfig) error {
-	fmt.Println("initializing backend")
+	log.Println("initializing backend")
 	return nil
 }
 
 func initFromSeed(list *memberlist.Memberlist, config *types.ScrimpConfig) error {
-	var p seed.Provider
-	var err error
-
-	if config.Provider == "manual" {
-		p, err = seed.NewManualProvider(config.ProviderConfig)
-
-		if err != nil {
-			return errors.Wrap(err, "couldn't initialize manual provider")
-		}
-	} else if config.Provider == "s3" {
-		p, err = seed.NewS3Provider(config.ProviderConfig)
-
-		if err != nil {
-			return errors.Wrap(err, "couldn't initialize s3 provider")
-		}
-	} else {
-		return fmt.Errorf("unrecognised provider: %s", config.Provider)
-	}
-
-	seedList, err := p.FetchSeed()
+	seedList, err := config.Provider.FetchSeed()
 
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch seed during initialisation")
+		return errors.Wrap(err, "failed to fetch seed during initialization")
 	}
 
 	var ips []string
@@ -188,34 +177,20 @@ func initFromSeed(list *memberlist.Memberlist, config *types.ScrimpConfig) error
 }
 
 func initPusher(config *types.ScrimpConfig) error {
-	var providerObject seed.Provider
-	var err error
-	switch config.Provider {
-	case "dummy":
-		providerObject, err = seed.NewDummyProvider(config.ProviderConfig)
-
-	case "manual":
-		providerObject, err = seed.NewManualProvider(config.ProviderConfig)
-
-	case "s3":
-		providerObject, err = seed.NewS3Provider(config.ProviderConfig)
-
-	default:
-		err = errors.Errorf("unrecognised provider type %v", config.Provider)
+	if config.ProviderName == "" {
+		log.Println("not starting pusher as no provider given")
+		return nil
 	}
 
-	if err != nil {
-		return err
-	}
-
-	pushTask := worker.NewPushTask(providerObject, config.LoadBalancerConfig.PushPeriod, config.LoadBalancerConfig.PushJitter)
+	log.Printf("initializing '%s' pusher", config.ProviderName)
+	pushTask := worker.NewPushTask(config)
 	go pushTask.Loop()
 
 	return nil
 }
 
 func enumerateNetworkInterfaces() {
-	fmt.Println("Enumerated network interfaces:")
+	log.Println("enumerated network interfaces:")
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		handleErr(err)
@@ -228,25 +203,10 @@ func enumerateNetworkInterfaces() {
 			handleErr(err)
 		}
 
-		fmt.Println(" - ", address)
+		log.Println(" - ", address)
 	}
 }
 
 func handleErr(err error) {
 	panic(err)
 }
-
-// 	flag.StringVar(&provider, "seed-provider",
-// 		"",
-// 		`A type of seed to use when bootstrapping the instance. Backend instances will fetch their IP from the seed,
-// while load balancers will publish their IP address to the seed source to be found by other instances.
-//
-// If you specify "manual", you must specify "-manual-ip" to give a known IP to conect to in the cluster.`)
-//
-// 	flag.StringVar(&manualIP, "manual-ip",
-// 		"",
-// 		"Ignored unless -seed-provider=manual. A known IP to connect to in the cluster")
-
-// func ipPusher(provider string, config *scrimpConfig) {
-// 	fmt.Println("pusher nyi")
-// }

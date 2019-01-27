@@ -60,7 +60,7 @@ docker-image:
 
 .PHONY: docker-run-lb
 docker-run-lb: docker-network
-	docker run -it --rm --network scrimplb6 --ip6 "fd02:c0df:1500:1::10" -v $(shell pwd)/fixture:/fixture  scrimp:latest -config-file /fixture/scrimp-lb.json -enumerate-network
+	docker run -it --rm --network scrimplb6 --ip6 "fd02:c0df:1500:1::10" -v $(shell pwd)/fixture:/fixture  scrimp:latest -config-file /fixture/scrimp-lb.json -enumerate-network -init-cluster
 
 .PHONY: docker-run-backend1
 docker-run-backend1: docker-network

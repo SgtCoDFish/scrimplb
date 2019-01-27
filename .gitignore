@@ -18,3 +18,5 @@
 bin/*
 vendor/*
 vendor
+
+docker.env

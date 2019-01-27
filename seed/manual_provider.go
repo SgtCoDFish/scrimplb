@@ -4,6 +4,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sgtcodfish/scrimplb/constants"
+	"github.com/sgtcodfish/scrimplb/resolver"
 )
 
 // ManualProvider always returns the same IP which was provided in config
@@ -46,6 +47,6 @@ func (m *ManualProvider) FetchSeed() (Seeds, error) {
 }
 
 // PushSeed is a no-op for a manual provider
-func (m *ManualProvider) PushSeed() error {
+func (m *ManualProvider) PushSeed(resolver resolver.IPResolver, port string) error {
 	return nil
 }

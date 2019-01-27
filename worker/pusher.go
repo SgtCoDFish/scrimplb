@@ -1,41 +1,52 @@
 package worker
 
 import (
-	"fmt"
+	"log"
 	"math/rand"
 	"time"
 
-	"github.com/sgtcodfish/scrimplb/seed"
+	"github.com/sgtcodfish/scrimplb/types"
 )
 
 // PushTask runs a Pusher on a regular, config-defined basis
 type PushTask struct {
-	provider  seed.Provider
-	sleepTime time.Duration
-	maxJitter time.Duration
+	config       *types.ScrimpConfig
+	sleepTime    time.Duration
+	maxJitter    time.Duration
+	failureCount int
 }
 
 // NewPushTask creates a new PushTask with the given config
-func NewPushTask(provider seed.Provider, sleepTime time.Duration, maxJitter time.Duration) *PushTask {
+func NewPushTask(config *types.ScrimpConfig) *PushTask {
 	return &PushTask{
-		provider,
-		sleepTime,
-		maxJitter,
+		config,
+		config.LoadBalancerConfig.PushPeriod,
+		config.LoadBalancerConfig.PushJitter,
+		0,
 	}
 }
 
 // Loop should be called in/as a goroutine and will regularly push state
 func (p *PushTask) Loop() {
 	for {
-		time.Sleep(time.Second * p.sleepTime)
+		if p.failureCount > 0 {
+			backoffSleep := time.Second * 5 * time.Duration(p.failureCount)
+			log.Printf("sleeping for %v extra due to previous failure\n", backoffSleep)
+			time.Sleep(backoffSleep)
+		}
+
+		time.Sleep(p.sleepTime)
 
 		randMs := time.Duration(rand.Int63n(p.maxJitter.Nanoseconds())).Round(time.Millisecond)
-		time.Sleep(time.Nanosecond * randMs)
+		time.Sleep(randMs)
 
-		err := p.provider.PushSeed()
+		err := p.config.Provider.PushSeed(p.config.Resolver, p.config.PortRaw)
 
 		if err != nil {
-			fmt.Printf("failed to push seed: %v\n", err)
+			log.Printf("failed to push seed: %v\n", err)
+			p.failureCount++
+		} else {
+			p.failureCount = 0
 		}
 	}
 }

@@ -1,5 +1,9 @@
 package seed
 
+import (
+	"github.com/sgtcodfish/scrimplb/resolver"
+)
+
 // Seed contains the details for a client to connect to a load balancer
 // without requiring multicast or another type of service discovery. This
 // allows us to bootstrap the gossip cluster
@@ -17,5 +21,5 @@ type Seeds struct {
 // depending on the details of any one cloud or hosting platform.
 type Provider interface {
 	FetchSeed() (Seeds, error)
-	PushSeed() error
+	PushSeed(resolver.IPResolver, string) error
 }

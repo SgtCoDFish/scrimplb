@@ -10,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/sgtcodfish/scrimplb/constants"
+	"github.com/sgtcodfish/scrimplb/resolver"
+	"github.com/sgtcodfish/scrimplb/seed"
 )
 
 const (
@@ -19,14 +21,17 @@ const (
 
 // ScrimpConfig describes JSON configuration options for Scrimp overall.
 type ScrimpConfig struct {
-	IsLoadBalancer     bool   `json:"lb"`
-	Provider           string `json:"provider"`
-	BindAddress        string `json:"bind-address"`
-	PortRaw            string `json:"port"`
-	Port               int
+	IsLoadBalancer     bool                   `json:"lb"`
+	BindAddress        string                 `json:"bind-address"`
+	PortRaw            string                 `json:"port"`
+	ProviderName       string                 `json:"provider"`
 	ProviderConfig     map[string]interface{} `json:"provider-config"`
-	LoadBalancerConfig *LoadBalancerConfig    `json:"load-balancer-config",omitempty`
-	BackendConfig      *BackendConfig         `json:"backend-config",omitempty`
+	ResolverName       string                 `json:"resolver"`
+	LoadBalancerConfig *LoadBalancerConfig    `json:"load-balancer-config"`
+	BackendConfig      *BackendConfig         `json:"backend-config"`
+	Port               int
+	Provider           seed.Provider
+	Resolver           resolver.IPResolver
 }
 
 // LoadScrimpConfig loads the given config file and parses fields which need to be parsed
@@ -58,11 +63,29 @@ func LoadScrimpConfig(configFile string) (*ScrimpConfig, error) {
 		return nil, err
 	}
 
-	if config.Provider == "" {
-		config.Provider = "dummy"
+	config.ProviderName = strings.ToLower(config.ProviderName)
+
+	if config.ProviderName != "" {
+		err = initProvider(&config)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	config.Provider = strings.ToLower(config.Provider)
+	// Load balancers need a resolver of some kind
+	config.ResolverName = strings.ToLower(config.ResolverName)
+	if config.IsLoadBalancer && config.ResolverName == "" {
+		return nil, errors.New("load balancers require a valid IP resolver in config")
+	}
+
+	if config.ResolverName != "" {
+		err = initResolver(&config)
+
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	intPort, err := strconv.Atoi(config.PortRaw)
 
@@ -71,8 +94,48 @@ func LoadScrimpConfig(configFile string) (*ScrimpConfig, error) {
 	}
 
 	config.Port = intPort
-
 	return &config, nil
+}
+
+func initResolver(config *ScrimpConfig) error {
+	var resolverObject resolver.IPResolver
+
+	switch config.ResolverName {
+	case "dummy":
+		resolverObject = resolver.NewDummyIPResolver()
+
+	case "ec2":
+		resolverObject = resolver.NewEC2IPResolver()
+
+	default:
+		return errors.Errorf("invalid resolver '%s'", config.ResolverName)
+	}
+
+	config.Resolver = resolverObject
+	return nil
+}
+
+func initProvider(config *ScrimpConfig) error {
+	var providerObject seed.Provider
+	var err error
+
+	switch config.ProviderName {
+	case "dummy":
+		providerObject, err = seed.NewDummyProvider(config.ProviderConfig)
+
+	case "manual":
+		providerObject, err = seed.NewManualProvider(config.ProviderConfig)
+
+	case "s3":
+		providerObject, err = seed.NewS3Provider(config.ProviderConfig)
+	}
+
+	if err != nil {
+		return errors.Wrapf(err, "couldn't initialise provider '%s'", config.ProviderName)
+	}
+
+	config.Provider = providerObject
+	return nil
 }
 
 func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
@@ -108,11 +171,11 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 
 func initialiseBackendConfig(config *ScrimpConfig) error {
 	if config.BackendConfig == nil {
-		return errors.New(`missing backend config for '"lb": false' in config file. creating a backend with no applications is pointless.`)
+		return errors.New(`missing backend config for '"lb": false' in config file. creating a backend with no applications is pointless`)
 	}
 
 	if len(config.BackendConfig.Applications) == 0 {
-		return errors.New(`no appliations given in config file. creating a backend with no applications is pointless.`)
+		return errors.New(`no appliations given in config file. creating a backend with no applications is pointless`)
 	}
 
 	return nil

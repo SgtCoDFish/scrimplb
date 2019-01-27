@@ -1,5 +1,11 @@
 package seed
 
+import (
+	"log"
+
+	"github.com/sgtcodfish/scrimplb/resolver"
+)
+
 // DummyProvider is a no-op for pushing and pulling seeds
 type DummyProvider struct{}
 
@@ -14,6 +20,7 @@ func (d *DummyProvider) FetchSeed() (Seeds, error) {
 }
 
 // PushSeed does nothing and returns no error
-func (d *DummyProvider) PushSeed() error {
+func (d *DummyProvider) PushSeed(resolver resolver.IPResolver, port string) error {
+	log.Println("dummy provider: PushSeed")
 	return nil
 }

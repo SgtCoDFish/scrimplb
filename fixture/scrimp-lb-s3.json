@@ -1,7 +1,10 @@
 {
 	"lb": true,
-	"provider": "dummy",
+	"provider": "s3",
 	"provider-config": {
+		"bucket": "load-balancer-bucket-loadbalancerbucket-2o37669hlkw5",
+		"region": "eu-west-1",
+		"key": "main"
 	},
 	"load-balancer-config": {
 		"push-period": "5s",

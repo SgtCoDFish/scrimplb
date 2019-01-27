@@ -1,8 +1,9 @@
 package seed
 
 import (
-	"fmt"
-	"strings"
+	"bytes"
+	"encoding/json"
+	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,14 +12,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sgtcodfish/scrimplb/constants"
+	"github.com/sgtcodfish/scrimplb/resolver"
 )
 
 // S3Provider can retrieve a seed from an object in an S3 bucket
 type S3Provider struct {
-	Bucket           string
-	AvailabilityZone string
-	Region           string
-	Key              string
+	Bucket string
+	Region string
+	Key    string
 
 	// accessKey       string
 	// secretAccessKey string
@@ -54,9 +55,14 @@ func NewS3Provider(config map[string]interface{}) (*S3Provider, error) {
 // FetchSeed makes a call to S3 to retrieve the seed for the AZ this
 // instance is located in.
 func (s *S3Provider) FetchSeed() (Seeds, error) {
-	sess, _ := session.NewSession(&aws.Config{
+	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(s.Region)},
 	)
+
+	if err != nil {
+		return Seeds{}, err
+	}
+
 	downloader := s3manager.NewDownloader(sess)
 
 	buf := aws.NewWriteAtBuffer([]byte{})
@@ -68,39 +74,62 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 		})
 
 	if err != nil {
-		return Seeds{}, fmt.Errorf("unable to download seed %v", err)
+		return Seeds{}, errors.Wrap(err, "unable to download seed")
 	}
 
-	fmt.Println("Downloaded", numBytes, "bytes")
+	log.Printf("downloaded %d bytes from S3 for seed\n", numBytes)
 
-	return Seeds{
-		Seeds: []Seed{
-			{
-				strings.TrimSpace(string(buf.Bytes())),
-				"9999",
-			},
-		},
-	}, nil
+	var seeds Seeds
+
+	err = json.Unmarshal(buf.Bytes(), &seeds)
+
+	if err != nil {
+		return Seeds{}, errors.Wrap(err, "unable to parse downloaded seed")
+	}
+
+	return seeds, nil
 }
 
-// PushSeed pushes local node details to an S3 bucket so that future nodes can join
-func (s *S3Provider) PushSeed() error {
-	return errors.New("nyi")
-}
+// PushSeed fetches remote data, updates with local node details and then
+// publishes the details to an S3 bucket so that future nodes can join
+func (s *S3Provider) PushSeed(resolver resolver.IPResolver, port string) error {
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(s.Region)},
+	)
 
-// func deduceInstanceAZ() (string, error) {
-// 	resp, err := http.Get("http://169.254.169.254/latest/meta-data/placement/availability-zone")
-//
-// 	if err != nil {
-// 		return "", nil
-// 	}
-//
-// 	defer resp.Body.Close()
-// 	raw, err := ioutil.ReadAll(resp.Body)
-//
-// 	if err != nil {
-// 		return "", err
-// 	}
-//
-// 	return string(raw), nil
-// }
+	if err != nil {
+		return err
+	}
+
+	ip, err := resolver.ResolveIP()
+
+	if err != nil {
+		return err
+	}
+
+	out, err := json.Marshal(Seeds{
+		Seeds: []Seed{{
+			Address: ip,
+			Port:    port,
+		}},
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "couldn't marshal output for S3")
+	}
+
+	uploader := s3manager.NewUploader(sess)
+	_, err = uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(s.Bucket),
+		Key:    aws.String(s.Key),
+		Body:   bytes.NewReader(out),
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "couldn't upload S3 content")
+	}
+
+	log.Println("successfully pushed seed to s3")
+
+	return nil
+}
