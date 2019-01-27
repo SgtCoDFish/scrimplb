@@ -1,6 +1,17 @@
-package worker
+package types
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
+
+// LoadBalancerConfig describes configuration options specific to load balancers.
+type LoadBalancerConfig struct {
+	PushPeriodRaw string `json:"push-period"`
+	PushJitterRaw string `json:"jitter"`
+	PushPeriod    time.Duration
+	PushJitter    time.Duration
+}
 
 // LoadBalancerDelegate listens for requests from backend instances for information and schedules replies
 type LoadBalancerDelegate struct {

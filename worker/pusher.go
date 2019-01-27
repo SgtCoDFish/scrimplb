@@ -10,17 +10,17 @@ import (
 
 // PushTask runs a Pusher on a regular, config-defined basis
 type PushTask struct {
-	provider              seed.Provider
-	sleepTime             time.Duration
-	maxJitterMilliseconds int64
+	provider  seed.Provider
+	sleepTime time.Duration
+	maxJitter time.Duration
 }
 
 // NewPushTask creates a new PushTask with the given config
-func NewPushTask(provider seed.Provider, sleepTime time.Duration, maxJitterMilliseconds int64) *PushTask {
+func NewPushTask(provider seed.Provider, sleepTime time.Duration, maxJitter time.Duration) *PushTask {
 	return &PushTask{
 		provider,
 		sleepTime,
-		maxJitterMilliseconds,
+		maxJitter,
 	}
 }
 
@@ -29,9 +29,8 @@ func (p *PushTask) Loop() {
 	for {
 		time.Sleep(time.Second * p.sleepTime)
 
-		if p.maxJitterMilliseconds != 0 {
-			time.Sleep(time.Millisecond * time.Duration(rand.Int63n(p.maxJitterMilliseconds)))
-		}
+		randMs := time.Duration(rand.Int63n(p.maxJitter.Nanoseconds())).Round(time.Millisecond)
+		time.Sleep(time.Nanosecond * randMs)
 
 		err := p.provider.PushSeed()
 

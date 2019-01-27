@@ -1,19 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
-	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/seed"
 	"github.com/sgtcodfish/scrimplb/types"
 	"github.com/sgtcodfish/scrimplb/worker"
@@ -22,18 +16,33 @@ import (
 	"github.com/pkg/errors"
 )
 
+type lbState struct {
+	memberMap  map[string]*memberlist.Node
+	memberLock sync.RWMutex
+}
+
 type LoadBalancerEventDelegate struct {
+	State lbState
 }
 
 func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
+	d.State.memberLock.Lock()
+	defer d.State.memberLock.Unlock()
+
 	log.Printf("joined: %s\n", string(node.Meta))
 }
 
 func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
+	d.State.memberLock.Lock()
+	defer d.State.memberLock.Unlock()
+
 	log.Printf("left: %s\n", string(node.Meta))
 }
 
 func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
+	d.State.memberLock.Lock()
+	defer d.State.memberLock.Unlock()
+
 	log.Printf("update: %s\n", string(node.Meta))
 }
 
@@ -48,56 +57,48 @@ func main() {
 		enumerateNetworkInterfaces()
 	}
 
-	data, err := ioutil.ReadFile(configFile)
+	config, err := types.LoadScrimpConfig(configFile)
 
 	if err != nil {
-		panic(err)
+		handleErr(err)
 	}
-
-	config := types.ScrimpConfig{
-		BindAddress:    "0.0.0.0",
-		Port:           constants.DefaultPort,
-		IsLoadBalancer: false,
-		SyncPeriod:     "30s",
-	}
-	err = json.Unmarshal(data, &config)
-
-	if err != nil {
-		panic(err)
-	}
-
-	config.Provider = strings.ToLower(config.Provider)
 
 	memberlistConfig := memberlist.DefaultLANConfig()
 	memberlistConfig.BindAddr = config.BindAddress
+	// we tweak some timeouts to reasonably minimise the time between
+	// a node being suspected to being declared dead - otherwise we have ~15s
+	// after a node dies where we might still route traffic to it
 	memberlistConfig.TCPTimeout = 4 * time.Second
 	memberlistConfig.SuspicionMult = 2
 	memberlistConfig.SuspicionMaxTimeoutMult = 3
 	memberlistConfig.RetransmitMult = 2
-
-	intPort, err := strconv.Atoi(config.Port)
-
-	if err != nil {
-		panic(err)
-	}
-
-	memberlistConfig.BindPort = intPort
+	memberlistConfig.BindPort = config.Port
 
 	if config.IsLoadBalancer {
-		delegate := worker.LoadBalancerDelegate{}
-		memberlistConfig.Delegate = &delegate
+		delegate := types.NewLoadBalancerDelegate(make(chan<- string))
+		memberlistConfig.Delegate = delegate
 
-		eventDelegate := LoadBalancerEventDelegate{}
+		eventDelegate := LoadBalancerEventDelegate{
+			lbState{
+				make(map[string]*memberlist.Node),
+				sync.RWMutex{},
+			},
+		}
 		memberlistConfig.Events = &eventDelegate
 	} else {
-		delegate := worker.BackendDelegate{}
-		memberlistConfig.Delegate = &delegate
+		delegate, err := types.NewBackendDelegate(config.BackendConfig)
+
+		if err != nil {
+			handleErr(err)
+		}
+
+		memberlistConfig.Delegate = delegate
 	}
 
 	list, err := memberlist.Create(memberlistConfig)
 
 	if err != nil {
-		panic(err)
+		handleErr(err)
 	}
 
 	localNode := list.LocalNode()
@@ -105,23 +106,23 @@ func main() {
 
 	if config.Provider != "" {
 		fmt.Printf("Joining cluster with provider '%s'\n", config.Provider)
-		err = initFromSeed(list, &config)
+		err = initFromSeed(list, config)
 
 		if err != nil {
-			panic(err)
+			handleErr(err)
 		}
 	} else {
 		fmt.Println("Initialised cluster as no provider was given.")
 	}
 
 	if config.IsLoadBalancer {
-		err = initLoadBalancer(&config)
+		err = initLoadBalancer(config)
 	} else {
-		err = initBackend(&config)
+		err = initBackend(config)
 	}
 
 	if err != nil {
-		panic(err)
+		handleErr(err)
 	}
 
 	wg := sync.WaitGroup{}
@@ -187,29 +188,8 @@ func initFromSeed(list *memberlist.Memberlist, config *types.ScrimpConfig) error
 }
 
 func initPusher(config *types.ScrimpConfig) error {
-	var lbConfig types.LoadBalancerConfig
-
-	err := mapstructure.Decode(config.LoadBalancerConfig, &lbConfig)
-
-	if err != nil {
-		return err
-	}
-
-	if lbConfig.Duration == "" {
-		return errors.New("missing required duration in load balancer config")
-	}
-
-	duration, err := time.ParseDuration(lbConfig.Duration)
-
-	if err != nil {
-		return err
-	}
-
-	if config.Provider == "" {
-		config.Provider = "dummy"
-	}
-
 	var providerObject seed.Provider
+	var err error
 	switch config.Provider {
 	case "dummy":
 		providerObject, err = seed.NewDummyProvider(config.ProviderConfig)
@@ -228,7 +208,7 @@ func initPusher(config *types.ScrimpConfig) error {
 		return err
 	}
 
-	pushTask := worker.NewPushTask(providerObject, duration, lbConfig.Jitter)
+	pushTask := worker.NewPushTask(providerObject, config.LoadBalancerConfig.PushPeriod, config.LoadBalancerConfig.PushJitter)
 	go pushTask.Loop()
 
 	return nil
@@ -238,18 +218,22 @@ func enumerateNetworkInterfaces() {
 	fmt.Println("Enumerated network interfaces:")
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		panic(err)
+		handleErr(err)
 	}
 
 	for _, a := range addrs {
 		address, _, err := net.ParseCIDR(a.String())
 
 		if err != nil {
-			panic(err)
+			handleErr(err)
 		}
 
 		fmt.Println(" - ", address)
 	}
+}
+
+func handleErr(err error) {
+	panic(err)
 }
 
 // 	flag.StringVar(&provider, "seed-provider",

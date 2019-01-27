@@ -1,23 +1,49 @@
-package worker
+package types
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
+
+// BackendConfig describes configuration for backend instances
+type BackendConfig struct {
+	Applications []Application `json:"applications"`
+}
+
+// BackendMetadata is returned by node metadata in the cluster, and describes
+// supported applications on the backend.
+type BackendMetadata struct {
+	Type         string        `json:"type"`
+	Applications []Application `json:"applications"`
+}
 
 // BackendDelegate listens for messages from other cluster members requesting
 // details about a backend.
 type BackendDelegate struct {
-	ch chan<- string
+	metadata []byte
 }
 
 // NewBackendDelegate creates a BackendDelegate from a channel which receives work tasks
-func NewBackendDelegate(ch chan<- string) *BackendDelegate {
-	return &BackendDelegate{
-		ch,
+func NewBackendDelegate(config *BackendConfig) (*BackendDelegate, error) {
+	backendMetadata := BackendMetadata{
+		"backend",
+		config.Applications,
 	}
+
+	rawMetadata, err := json.Marshal(backendMetadata)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &BackendDelegate{
+		rawMetadata,
+	}, nil
 }
 
-// NodeMeta returns metadata about this node
+// NodeMeta returns metadata about this backend, including a list of supported applications
 func (b *BackendDelegate) NodeMeta(limit int) []byte {
-	return []byte(`{"type": "backend"}`)
+	return b.metadata
 }
 
 // NotifyMsg receives messages from other cluster members. If the message was
