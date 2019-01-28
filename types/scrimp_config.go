@@ -99,6 +99,7 @@ func LoadScrimpConfig(configFile string) (*ScrimpConfig, error) {
 
 func initResolver(config *ScrimpConfig) error {
 	var resolverObject resolver.IPResolver
+	var err error
 
 	switch config.ResolverName {
 	case "dummy":
@@ -107,8 +108,15 @@ func initResolver(config *ScrimpConfig) error {
 	case "ec2":
 		resolverObject = resolver.NewEC2IPResolver()
 
+	case "ipv6":
+		resolverObject, err = resolver.NewIPv6UnicastResolver()
+
 	default:
 		return errors.Errorf("invalid resolver '%s'", config.ResolverName)
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "couldn't create IP resolver")
 	}
 
 	config.Resolver = resolverObject

@@ -10,5 +10,5 @@
 		"push-period": "5s",
 		"push-jitter": "1s"
 	},
-	"resolver": "dummy"
+	"resolver": "ipv6"
 }
