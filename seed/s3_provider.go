@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -93,6 +94,12 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 // PushSeed fetches remote data, updates with local node details and then
 // publishes the details to an S3 bucket so that future nodes can join
 func (s *S3Provider) PushSeed(resolver resolver.IPResolver, port string) error {
+	ip, err := resolver.ResolveIP()
+
+	if err != nil {
+		return err
+	}
+
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(s.Region)},
 	)
@@ -101,18 +108,65 @@ func (s *S3Provider) PushSeed(resolver resolver.IPResolver, port string) error {
 		return err
 	}
 
-	ip, err := resolver.ResolveIP()
+	downloader := s3manager.NewDownloader(sess)
 
+	buf := aws.NewWriteAtBuffer([]byte{})
+
+	numBytes, err := downloader.Download(buf,
+		&s3.GetObjectInput{
+			Bucket: aws.String(s.Bucket),
+			Key:    aws.String(s.Key),
+		})
+
+	var downloadedSeeds Seeds
 	if err != nil {
-		return err
+		if awsErr, ok := err.(awserr.Error); ok {
+			switch awsErr.Code() {
+			case s3.ErrCodeNoSuchBucket:
+				return errors.Wrap(err, "unable to push seed - no such bucket")
+
+			default:
+				// ignore
+			}
+		}
+	} else {
+		log.Printf("downloaded %d bytes from S3 for seed\n", numBytes)
+		err = json.Unmarshal(buf.Bytes(), &downloadedSeeds)
+
+		if err != nil {
+			log.Println("unable to parse downloaded seed, defaulting to overwriting file")
+		}
 	}
 
-	out, err := json.Marshal(Seeds{
-		Seeds: []Seed{{
+	seeds := Seeds{}
+	if downloadedSeeds.Seeds != nil && len(downloadedSeeds.Seeds) > 0 {
+		seeds.Seeds = downloadedSeeds.Seeds
+		hasCurrent := false
+
+		for _, s := range downloadedSeeds.Seeds {
+			if s.Address == ip && s.Port == port {
+				hasCurrent = true
+				break
+			}
+		}
+
+		if !hasCurrent {
+			seeds.Seeds = append(seeds.Seeds, Seed{
+				Address: ip,
+				Port:    port,
+			})
+		} else {
+			log.Println("skipping publishing seed as address is already published")
+			return nil
+		}
+	} else {
+		seeds.Seeds = []Seed{{
 			Address: ip,
 			Port:    port,
-		}},
-	})
+		}}
+	}
+
+	out, err := json.Marshal(seeds)
 
 	if err != nil {
 		return errors.Wrap(err, "couldn't marshal output for S3")
