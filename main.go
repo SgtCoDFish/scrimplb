@@ -4,7 +4,9 @@ import (
 	"flag"
 	"log"
 	"net"
+	"os"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/sgtcodfish/scrimplb/types"
@@ -13,41 +15,6 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/pkg/errors"
 )
-
-type lbState struct {
-	memberMap  map[string]*memberlist.Node
-	memberLock sync.RWMutex
-}
-
-// LoadBalancerEventDelegate listens for events and updates load balancer state
-// based on node metadata
-type LoadBalancerEventDelegate struct {
-	State lbState
-}
-
-// NotifyJoin adds new nodes to load balancer state
-func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
-	d.State.memberLock.Lock()
-	defer d.State.memberLock.Unlock()
-
-	log.Printf("joined: %s\n", string(node.Meta))
-}
-
-// NotifyLeave removes existing nodes from load balancer state
-func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
-	d.State.memberLock.Lock()
-	defer d.State.memberLock.Unlock()
-
-	log.Printf("left: %s\n", string(node.Meta))
-}
-
-// NotifyUpdate updates existing nodes in load balancer state
-func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
-	d.State.memberLock.Lock()
-	defer d.State.memberLock.Unlock()
-
-	log.Printf("update: %s\n", string(node.Meta))
-}
 
 func main() {
 	var configFile string
@@ -84,13 +51,11 @@ func main() {
 		delegate := types.NewLoadBalancerDelegate(make(chan<- string))
 		memberlistConfig.Delegate = delegate
 
-		eventDelegate := LoadBalancerEventDelegate{
-			lbState{
-				make(map[string]*memberlist.Node),
-				sync.RWMutex{},
-			},
-		}
+		upstreamNotificationChannel := make(chan types.UpstreamApplicationMap)
+		eventDelegate := types.NewLoadBalancerEventDelegate(upstreamNotificationChannel)
 		memberlistConfig.Events = &eventDelegate
+
+		go handleUpstreamNotification(upstreamNotificationChannel)
 	} else {
 		delegate, err := types.NewBackendDelegate(config.BackendConfig)
 
@@ -187,6 +152,43 @@ func initPusher(config *types.ScrimpConfig) error {
 	go pushTask.Loop()
 
 	return nil
+}
+
+func handleUpstreamNotification(ch <-chan types.UpstreamApplicationMap) {
+	for {
+		val := <-ch
+		upstreamMap := make(map[types.Application][]string)
+
+		for k, v := range val {
+			for _, app := range v {
+				upstreamMap[app] = append(upstreamMap[app], k.Address)
+			}
+		}
+
+		//fmt.Printf("generated new map:\n%#v\n", upstreamMap)
+
+		tmpl := template.New("nginx")
+
+		t, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}
+	upstream {{.}};{{end}}
+}
+`)
+
+		if err != nil {
+			log.Printf("coudn't create go template: %v\n", err)
+			continue
+		}
+
+		for k, v := range upstreamMap {
+			err = t.Execute(os.Stdout, struct {
+				Name      string
+				Addresses []string
+			}{
+				k.Name,
+				v,
+			})
+		}
+	}
 }
 
 func enumerateNetworkInterfaces() {
