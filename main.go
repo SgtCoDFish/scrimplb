@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net"
-	"os"
 	"sync"
-	"text/template"
 	"time"
 
+	"github.com/sgtcodfish/scrimplb/generator"
 	"github.com/sgtcodfish/scrimplb/types"
 	"github.com/sgtcodfish/scrimplb/worker"
 
@@ -157,37 +157,16 @@ func initPusher(config *types.ScrimpConfig) error {
 func handleUpstreamNotification(ch <-chan types.UpstreamApplicationMap) {
 	for {
 		val := <-ch
-		upstreamMap := make(map[types.Application][]string)
+		gen := generator.NginxGenerator{}
 
-		for k, v := range val {
-			for _, app := range v {
-				upstreamMap[app] = append(upstreamMap[app], k.Address)
-			}
-		}
-
-		//fmt.Printf("generated new map:\n%#v\n", upstreamMap)
-
-		tmpl := template.New("nginx")
-
-		t, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}
-	upstream {{.}};{{end}}
-}
-`)
+		txt, err := gen.GenerateConfig(val)
 
 		if err != nil {
-			log.Printf("coudn't create go template: %v\n", err)
+			fmt.Println(err)
 			continue
 		}
 
-		for k, v := range upstreamMap {
-			err = t.Execute(os.Stdout, struct {
-				Name      string
-				Addresses []string
-			}{
-				k.Name,
-				v,
-			})
-		}
+		fmt.Println(txt)
 	}
 }
 
