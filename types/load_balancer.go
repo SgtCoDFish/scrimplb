@@ -55,10 +55,6 @@ func (d *LoadBalancerDelegate) LocalState(join bool) []byte {
 func (d *LoadBalancerDelegate) MergeRemoteState(buf []byte, join bool) {
 }
 
-// UpstreamApplicationMap maps basic node details from a memberlist.Node to
-// the node's supported applications.
-type UpstreamApplicationMap map[Upstream][]Application
-
 // LoadBalancerState provides state which is maintained by a load balancer
 // relating to the nodes in the cluster that it might forward on to.
 type LoadBalancerState struct {

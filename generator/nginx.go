@@ -17,21 +17,36 @@ type NginxGenerator struct {
 func (n *NginxGenerator) GenerateConfig(upstreamMap types.UpstreamApplicationMap) (string, error) {
 	appMap := MakeApplicationMap(upstreamMap)
 
-	tmpl := template.New("nginx")
-	t, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}
+	tmpl := template.New("upstream")
+	upstreamTemplate, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}
 	upstream {{.}};{{end}}
 }
 `)
 
+	serverTmpl := template.New("server")
+	serverTemplate, err := serverTmpl.Parse(`server {
+	listen {{.Port}};
+	listen [::]:{{.Port}};
+
+	server_name {{.Domain}};
+
+	location / {
+		proxy_pass {{.Protocol}}://{{.Name}};
+	}
+}
+
+`)
+
 	if err != nil {
-		log.Printf("coudn't create go template: %v\n", err)
+		log.Printf("coudn't create upstream template: %v\n", err)
 		return "", err
 	}
 
-	buf := new(bytes.Buffer)
+	upstreamBuf := new(bytes.Buffer)
+	serverBuf := new(bytes.Buffer)
 
 	for k, v := range appMap {
-		err := t.Execute(buf, struct {
+		err := upstreamTemplate.Execute(upstreamBuf, struct {
 			Name      string
 			Addresses []string
 		}{
@@ -42,7 +57,14 @@ func (n *NginxGenerator) GenerateConfig(upstreamMap types.UpstreamApplicationMap
 		if err != nil {
 			return "", err
 		}
+
+		err = serverTemplate.Execute(serverBuf, k)
+
+		if err != nil {
+			return "", err
+		}
+
 	}
 
-	return buf.String(), nil
+	return upstreamBuf.String() + "\n\n" + serverBuf.String(), nil
 }

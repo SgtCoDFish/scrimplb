@@ -8,11 +8,13 @@
 		"applications": [{
 			"name": "nginx",
 			"port": "80",
-			"domain": "nginx.example.com"
+			"domain": "nginx.example.com",
+			"protocol": "http"
 		}, {
 			"name": "secure-nginx",
 			"port": "443",
-			"domain": "secure-nginx.example.com"
+			"domain": "secure-nginx.example.com",
+			"protocol": "https"
 		}]
 	}
 }
