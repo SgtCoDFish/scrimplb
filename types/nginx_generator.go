@@ -1,11 +1,11 @@
-package generator
+package types
 
 import (
 	"bytes"
 	"html/template"
 	"log"
 
-	"github.com/sgtcodfish/scrimplb/types"
+	"github.com/pkg/errors"
 )
 
 // NginxGenerator produces nginx upstream blocks for use for by an nginx
@@ -14,7 +14,7 @@ type NginxGenerator struct {
 }
 
 // GenerateConfig returns nginx upstream config for the given UpstreamApplicationMap
-func (n *NginxGenerator) GenerateConfig(upstreamMap types.UpstreamApplicationMap) (string, error) {
+func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (string, error) {
 	appMap := MakeApplicationMap(upstreamMap)
 
 	tmpl := template.New("upstream")
@@ -22,6 +22,10 @@ func (n *NginxGenerator) GenerateConfig(upstreamMap types.UpstreamApplicationMap
 	upstream {{.}};{{end}}
 }
 `)
+
+	if err != nil {
+		return "", errors.Wrap(err, "couldn't parse template")
+	}
 
 	serverTmpl := template.New("server")
 	serverTemplate, err := serverTmpl.Parse(`server {

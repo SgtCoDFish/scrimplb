@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/sgtcodfish/scrimplb/generator"
 	"github.com/sgtcodfish/scrimplb/types"
 	"github.com/sgtcodfish/scrimplb/worker"
 
@@ -55,7 +55,7 @@ func main() {
 		eventDelegate := types.NewLoadBalancerEventDelegate(upstreamNotificationChannel)
 		memberlistConfig.Events = &eventDelegate
 
-		go handleUpstreamNotification(upstreamNotificationChannel)
+		go handleUpstreamNotification(config, upstreamNotificationChannel)
 	} else {
 		delegate, err := types.NewBackendDelegate(config.BackendConfig)
 
@@ -154,19 +154,24 @@ func initPusher(config *types.ScrimpConfig) error {
 	return nil
 }
 
-func handleUpstreamNotification(ch <-chan types.UpstreamApplicationMap) {
+func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan types.UpstreamApplicationMap) {
 	for {
+		time.Sleep(5 * time.Second)
 		val := <-ch
-		gen := generator.NginxGenerator{}
-
-		txt, err := gen.GenerateConfig(val)
+		txt, err := config.LoadBalancerConfig.Generator.GenerateConfig(val)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			continue
 		}
 
 		fmt.Println(txt)
+
+		err = ioutil.WriteFile("/etc/scrimplb/nginx.conf", []byte(txt), 0664)
+
+		if err != nil {
+			log.Printf("couldn't write config file: %v\n", err)
+		}
 	}
 }
 

@@ -149,13 +149,23 @@ func initProvider(config *ScrimpConfig) error {
 func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 	if config.LoadBalancerConfig == nil {
 		config.LoadBalancerConfig = &LoadBalancerConfig{
-			PushPeriodRaw: defaultPushPeriod,
-			PushJitterRaw: defaultPushJitter,
+			PushPeriodRaw:        defaultPushPeriod,
+			PushJitterRaw:        defaultPushJitter,
+			GeneratorType:        "dummy",
+			GeneratorPrintStdout: false,
 		}
-	} else if config.LoadBalancerConfig.PushPeriodRaw == "" {
-		config.LoadBalancerConfig.PushPeriodRaw = defaultPushPeriod
-	} else if config.LoadBalancerConfig.PushJitterRaw == "" {
-		config.LoadBalancerConfig.PushJitterRaw = defaultPushJitter
+	} else {
+		if config.LoadBalancerConfig.PushPeriodRaw == "" {
+			config.LoadBalancerConfig.PushPeriodRaw = defaultPushPeriod
+		}
+
+		if config.LoadBalancerConfig.PushJitterRaw == "" {
+			config.LoadBalancerConfig.PushJitterRaw = defaultPushJitter
+		}
+
+		if config.LoadBalancerConfig.GeneratorType == "" {
+			config.LoadBalancerConfig.GeneratorType = "dummy"
+		}
 	}
 
 	pushPeriod, err := time.ParseDuration(config.LoadBalancerConfig.PushPeriodRaw)
@@ -173,6 +183,21 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 	}
 
 	config.LoadBalancerConfig.PushJitter = pushJitter
+
+	switch config.LoadBalancerConfig.GeneratorType {
+	case "dummy":
+		config.LoadBalancerConfig.Generator = DummyGenerator{}
+
+	case "nginx":
+		config.LoadBalancerConfig.Generator = NginxGenerator{}
+
+	default:
+		err = errors.Errorf("invalid generator type %s", config.LoadBalancerConfig.GeneratorType)
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "couldn't create generator")
+	}
 
 	return nil
 }

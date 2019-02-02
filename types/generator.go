@@ -1,16 +1,14 @@
-package generator
-
-import "github.com/sgtcodfish/scrimplb/types"
+package types
 
 // Generator provides an interface for generating configuration values based on backend configuration
 type Generator interface {
-	GenerateConfig(types.UpstreamApplicationMap) (string, error)
+	GenerateConfig(UpstreamApplicationMap) (string, error)
 }
 
 // MakeApplicationMap converts a map of upstreams to applications into a map
 // of applications to addresses
-func MakeApplicationMap(val types.UpstreamApplicationMap) map[types.Application][]string {
-	appMap := make(map[types.Application][]string)
+func MakeApplicationMap(val UpstreamApplicationMap) map[Application][]string {
+	appMap := make(map[Application][]string)
 
 	for k, v := range val {
 		for _, app := range v {

@@ -8,7 +8,9 @@
 	},
 	"load-balancer-config": {
 		"push-period": "5s",
-		"push-jitter": "1s"
+		"push-jitter": "1s",
+		"generator": "nginx",
+		"generator-stdout": true
 	},
 	"resolver": "ipv6"
 }

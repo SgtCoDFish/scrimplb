@@ -12,10 +12,13 @@ import (
 
 // LoadBalancerConfig describes configuration options specific to load balancers.
 type LoadBalancerConfig struct {
-	PushPeriodRaw string `json:"push-period"`
-	PushJitterRaw string `json:"jitter"`
-	PushPeriod    time.Duration
-	PushJitter    time.Duration
+	PushPeriodRaw        string `json:"push-period"`
+	PushJitterRaw        string `json:"jitter"`
+	GeneratorType        string `json:"generator"`
+	GeneratorPrintStdout bool   `json:"generator-stdout"`
+	Generator            Generator
+	PushPeriod           time.Duration
+	PushJitter           time.Duration
 }
 
 // LoadBalancerDelegate listens for requests from backend instances for information and schedules replies
