@@ -165,12 +165,16 @@ func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan types.Upst
 			continue
 		}
 
-		fmt.Println(txt)
+		if config.LoadBalancerConfig.GeneratorPrintStdout {
+			fmt.Println(txt)
+		}
 
-		err = ioutil.WriteFile("/etc/scrimplb/nginx.conf", []byte(txt), 0664)
+		if config.LoadBalancerConfig.GeneratorTarget != "" {
+			err = ioutil.WriteFile(config.LoadBalancerConfig.GeneratorTarget, []byte(txt), 0664)
 
-		if err != nil {
-			log.Printf("couldn't write config file: %v\n", err)
+			if err != nil {
+				log.Printf("couldn't write config file: %v\n", err)
+			}
 		}
 	}
 }

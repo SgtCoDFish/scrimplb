@@ -152,6 +152,7 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 			PushPeriodRaw:        defaultPushPeriod,
 			PushJitterRaw:        defaultPushJitter,
 			GeneratorType:        "dummy",
+			GeneratorTarget:      "",
 			GeneratorPrintStdout: false,
 		}
 	} else {

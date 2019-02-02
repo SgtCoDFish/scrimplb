@@ -15,6 +15,7 @@ type LoadBalancerConfig struct {
 	PushPeriodRaw        string `json:"push-period"`
 	PushJitterRaw        string `json:"jitter"`
 	GeneratorType        string `json:"generator"`
+	GeneratorTarget      string `json:"generator-target"`
 	GeneratorPrintStdout bool   `json:"generator-stdout"`
 	Generator            Generator
 	PushPeriod           time.Duration
