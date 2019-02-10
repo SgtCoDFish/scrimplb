@@ -19,11 +19,9 @@ import (
 func main() {
 	var configFile string
 	var shouldEnumerateNetwork bool
-	var initCluster bool
 
 	flag.StringVar(&configFile, "config-file", "./scrimp.json", "Location of a config file to use")
 	flag.BoolVar(&shouldEnumerateNetwork, "enumerate-network", false, "Print all detected addresses")
-	flag.BoolVar(&initCluster, "init-cluster", false, "Initialise the cluster")
 	flag.Parse()
 
 	if shouldEnumerateNetwork {
@@ -75,10 +73,8 @@ func main() {
 	localNode := list.LocalNode()
 	log.Println("listening as", localNode.Name, localNode.Addr)
 
-	if initCluster {
-		log.Println("initializing cluster as -init-cluster was given")
-	} else if config.ProviderName == "" {
-		handleErr(errors.New("no provider given and -init-cluster not specified"))
+	if config.ProviderName == "" {
+		log.Printf("Warning: No provider given, so this node may be orphaned")
 	} else {
 		log.Printf("joining cluster with provider '%s'\n", config.ProviderName)
 		err = initFromSeed(list, config)
