@@ -1,0 +1,14 @@
+[Unit]
+Description=Scrimp application server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/scrimplb -config-file /etc/scrimp/scrimp-backend.json
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=scrimp
+User=scrimplb
+Group=scrimplb
+
+[Install]
+WantedBy=multi-user.target
