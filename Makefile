@@ -26,10 +26,11 @@ bin/$(NAME)-linux-rel: $(wildcard *.go) $(wildcard */*.go)
 # Uses docker-fpm to build a deb
 ARTIFACT/scrimplb.deb: clean bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VERSION.txt
 	mkdir -p ARTIFACT
-	mkdir -p BUILD/usr/bin BUILD/lib/systemd/system BUILD/etc/scrimp
+	mkdir -p BUILD/usr/bin BUILD/lib/systemd/system BUILD/etc/scrimplb
 	cp bin/$(NAME)-linux-rel BUILD/usr/bin/scrimplb
 	cp dist/debian/scrimplb.service BUILD/lib/systemd/system/
-	cp VERSION.txt BUILD/etc/scrimp/
+	cp dist/debian/nginx.conf BUILD/etc/scrimplb/
+	cp VERSION.txt BUILD/etc/scrimplb/
 	docker run -it --rm -v $(shell pwd)/:/fpm fpm:latest -s dir -t deb \
 		-n $(NAME) \
 		-v $(VERSION) \

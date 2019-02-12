@@ -1,3 +1,3 @@
 #!/bin/sh
 
-chown -R scrimp:scrimp /etc/scrimp
+chown -R scrimplb:scrimplb /etc/scrimplb

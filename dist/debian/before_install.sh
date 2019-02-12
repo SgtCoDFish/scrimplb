@@ -1,10 +1,10 @@
 #!/bin/sh
 
-if ! getent group scrimp >/dev/null; then
-  groupadd -r scrimp
+if ! getent group scrimplb >/dev/null; then
+  groupadd -r scrimplb
 fi
 
-if ! getent passwd scrimp >/dev/null; then
-  useradd -M -r -g scrimp \
-    -s /sbin/nologin -c "Scrimplb user" scrimp
+if ! getent passwd scrimplb >/dev/null; then
+  useradd -M -r -g scrimplb \
+    -s /sbin/nologin -c "Scrimplb user" scrimplb
 fi

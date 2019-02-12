@@ -16,7 +16,10 @@ import (
 	"github.com/sgtcodfish/scrimplb/resolver"
 )
 
-// S3Provider can retrieve a seed from an object in an S3 bucket
+// S3Provider can retrieve a seed from an object in an S3 bucket.
+// Required permissions for a load balancer are: GetObject, PutObject, ListBucket
+// Required permissions for an application server are: GetObject, ListBucket
+// Without ListBucket you'll get an AccessDenied when you try to fetch a nonexistant seed
 type S3Provider struct {
 	Bucket string
 	Region string
@@ -75,7 +78,17 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 		})
 
 	if err != nil {
-		return Seeds{}, errors.Wrap(err, "unable to download seed")
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchKey:
+				return Seeds{}, nil
+
+			default:
+				return Seeds{}, errors.Wrap(err, "unable to download seed")
+			}
+		} else {
+			return Seeds{}, errors.Wrap(err, "unable to download seed; non-AWS error")
+		}
 	}
 
 	log.Printf("downloaded %d bytes from S3 for seed\n", numBytes)

@@ -3,10 +3,10 @@ Description=Scrimp load balancer
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/scrimplb -config-file /etc/scrimp/scrimp-lb.json
+ExecStart=/usr/bin/scrimplb -config-file /etc/scrimplb/scrimp-lb.json
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=scrimp
+SyslogIdentifier=scrimplb
 User=scrimplb
 Group=scrimplb
 

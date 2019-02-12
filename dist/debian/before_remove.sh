@@ -1,10 +1,10 @@
 #!/bin/sh
 if [ $1 = "remove" ]; then
-  if getent passwd scrimp >/dev/null ; then
-    userdel scrimp
+  if getent passwd scrimplb >/dev/null ; then
+    userdel scrimplb
   fi
 
-  if getent group scrimp >/dev/null ; then
-    groupdel scrimp
+  if getent group scrimplb >/dev/null ; then
+    groupdel scrimplb
   fi
 fi
