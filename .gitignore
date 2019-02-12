@@ -22,5 +22,4 @@ vendor
 docker.env
 
 BUILD
-ARTIFACT_LB
-ARTIFACT_APP
+ARTIFACT

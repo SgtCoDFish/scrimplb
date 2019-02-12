@@ -24,9 +24,8 @@ bin/$(NAME)-linux-rel: $(wildcard *.go) $(wildcard */*.go)
 	GOOS=linux $(GO) build -o $@ -ldflags '-s -w' .
 
 # Uses docker-fpm to build a deb
-ARTIFACT_LB/scrimplb.deb: bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VERSION.txt
-	rm -rf BUILD ARTIFACT_LB
-	mkdir -p ARTIFACT_LB
+ARTIFACT/scrimplb.deb: clean bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VERSION.txt
+	mkdir -p ARTIFACT
 	mkdir -p BUILD/usr/bin BUILD/lib/systemd/system BUILD/etc/scrimp
 	cp bin/$(NAME)-linux-rel BUILD/usr/bin/scrimplb
 	cp dist/debian/scrimplb.service BUILD/lib/systemd/system/
@@ -49,6 +48,7 @@ ARTIFACT_LB/scrimplb.deb: bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VERSIO
 clean:
 	@echo "+ $@"
 	@rm -rf bin
+	@rm -rf ARTIFACT BUILD
 
 .PHONY: vet
 vet:
