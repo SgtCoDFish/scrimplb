@@ -35,15 +35,16 @@ func main() {
 	}
 
 	memberlistConfig := memberlist.DefaultLANConfig()
+
 	memberlistConfig.BindAddr = config.BindAddress
+	memberlistConfig.BindPort = config.Port
 	// we tweak some timeouts to reasonably minimise the time between
 	// a node being suspected to being declared dead - otherwise we have ~15s
 	// after a node dies where we might still route traffic to it
-	memberlistConfig.TCPTimeout = 4 * time.Second
+	memberlistConfig.TCPTimeout = 5 * time.Second
 	memberlistConfig.SuspicionMult = 2
 	memberlistConfig.SuspicionMaxTimeoutMult = 3
 	memberlistConfig.RetransmitMult = 2
-	memberlistConfig.BindPort = config.Port
 
 	if config.IsLoadBalancer {
 		delegate := types.NewLoadBalancerDelegate(make(chan<- string))

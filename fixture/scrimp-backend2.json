@@ -7,12 +7,14 @@
 	"backend-config": {
 		"applications": [{
 			"name": "nginx",
-			"port": "80",
+			"listen-port": "80",
+			"application-port": "4444",
 			"domain": "nginx.example.com",
 			"protocol": "http"
 		}, {
 			"name": "someservice",
-			"port": "5101",
+			"listen-port": "5101",
+			"application-port": "4444",
 			"domain": "someservice.example.com",
 			"protocol": "http"
 		}]

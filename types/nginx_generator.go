@@ -19,7 +19,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 	tmpl := template.New("upstream")
 	upstreamTemplate, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}
-	upstream {{.}};{{end}}
+	server {{.}}:{{$.ApplicationPort}};{{end}}
 }
 `)
 
@@ -29,8 +29,8 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 	serverTmpl := template.New("server")
 	serverTemplate, err := serverTmpl.Parse(`server {
-	listen {{.Port}};
-	listen [::]:{{.Port}};
+	listen {{.ListenPort}};
+	listen [::]:{{.ListenPort}};
 
 	server_name {{.Domain}};
 
@@ -51,10 +51,12 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 	for k, v := range appMap {
 		err := upstreamTemplate.Execute(upstreamBuf, struct {
-			Name      string
-			Addresses []string
+			Name            string
+			ApplicationPort string
+			Addresses       []string
 		}{
 			k.Name,
+			k.ApplicationPort,
 			v,
 		})
 
