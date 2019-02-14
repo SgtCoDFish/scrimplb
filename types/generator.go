@@ -3,6 +3,7 @@ package types
 // Generator provides an interface for generating configuration values based on backend configuration
 type Generator interface {
 	GenerateConfig(UpstreamApplicationMap) (string, error)
+	HandleRestart() error
 }
 
 // MakeApplicationMap converts a map of upstreams to applications into a map

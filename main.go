@@ -171,6 +171,14 @@ func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan types.Upst
 
 			if err != nil {
 				log.Printf("couldn't write config file: %v\n", err)
+				continue
+			}
+
+			err := config.LoadBalancerConfig.Generator.HandleRestart()
+
+			if err != nil {
+				log.Printf("couldn't restart after writing generated config: %v\n", err)
+				continue
 			}
 		}
 	}

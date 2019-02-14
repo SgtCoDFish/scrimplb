@@ -8,3 +8,8 @@ type DummyGenerator struct {
 func (d DummyGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (string, error) {
 	return "dummy-config", nil
 }
+
+// HandleRestart returns no error and does nothing
+func (d DummyGenerator) HandleRestart() error {
+	return nil
+}

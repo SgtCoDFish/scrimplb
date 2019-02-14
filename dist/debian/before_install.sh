@@ -5,6 +5,5 @@ if ! getent group scrimplb >/dev/null; then
 fi
 
 if ! getent passwd scrimplb >/dev/null; then
-  useradd -M -r -g scrimplb \
-    -s /sbin/nologin -c "Scrimplb user" scrimplb
+  useradd -M -r -g scrimplb -s /usr/sbin/nologin -c "Scrimplb user" scrimplb
 fi

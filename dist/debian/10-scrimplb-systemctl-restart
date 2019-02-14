@@ -1,0 +1,2 @@
+# allows scrimplb to use systemctl restart nginx after generating config
+scrimplb ALL=(ALL) NOPASSWD: /bin/systemctl restart nginx

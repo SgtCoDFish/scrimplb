@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"log"
+	"os/exec"
 
 	"github.com/pkg/errors"
 )
@@ -73,4 +74,25 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 	}
 
 	return upstreamBuf.String() + "\n\n" + serverBuf.String(), nil
+}
+
+// HandleRestart assumes we're running on a systemd system and that we have access
+// via sudo to restart nginx
+func (n NginxGenerator) HandleRestart() error {
+	cmd := exec.Command("/bin/sh", "-c", "sudo /bin/systemctl restart nginx")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	if err != nil {
+		log.Printf("nginx restart failed:\nstdout: %s\nstderr: %s\n", stdout.String(), stderr.String())
+		return errors.Wrap(err, "failed to restart nginx")
+	}
+
+	return nil
 }
