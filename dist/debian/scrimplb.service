@@ -1,6 +1,7 @@
 [Unit]
 Description=Scrimp load balancer
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 ExecStart=/usr/bin/scrimplb -config-file /etc/scrimplb/scrimp-lb.json
