@@ -10,6 +10,9 @@ StandardError=syslog
 SyslogIdentifier=scrimplb
 User=scrimplb
 Group=scrimplb
+Restart=on-failure
+RestartSec=10s
+StartLimitInterval=1min
 
 [Install]
 WantedBy=multi-user.target
