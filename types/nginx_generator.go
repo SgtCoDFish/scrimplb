@@ -2,43 +2,53 @@ package types
 
 import (
 	"bytes"
-	"html/template"
 	"log"
 	"os/exec"
+	"text/template"
 
 	"github.com/pkg/errors"
 )
 
 const tlsConfig = `
-ssl_protocols TLSv1.2;
-ssl_prefer_server_ciphers on;
-ssl_session_timeout 1d;
-ssl_stapling on;
-ssl_stapling_verify on;
-ssl_session_cache shared:SSL:50m;
-ssl_session_tickets off;
+	ssl_protocols TLSv1.2;
+	ssl_prefer_server_ciphers on;
+	ssl_session_timeout 1d;
+	ssl_stapling on;
+	ssl_stapling_verify on;
+	ssl_session_cache shared:SSL:50m;
+	ssl_session_tickets off;
 
-ssl_ciphers "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256";
+	ssl_ciphers "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256";
 
-add_header X-Frame-Options "SAMEORIGIN";
-add_header X-Content-Type-Options "nosniff";
-add_header X-XSS-Protection "1; mode=block";
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload";
-ssl_certificate /etc/ssl/fullchain.pem;
-ssl_certificate_key /etc/ssl/privkey.pem;
-ssl_dhparam /etc/ssl/dhparam.pem;
+	add_header X-Frame-Options "SAMEORIGIN";
+	add_header X-Content-Type-Options "nosniff";
+	add_header X-XSS-Protection "1; mode=block";
+	add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload";
+	ssl_certificate /etc/ssl/fullchain.pem;
+	ssl_certificate_key /etc/ssl/privkey.pem;
+	ssl_dhparam /etc/scrimplb/dhparam.pem;
 `
 
-const defaultConfig = `server {
-	listen 80;
-	listen [::]:80;
+const httpConfig = `server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
 
-	server_name _ default_server;
+	server_name _;
+
+	return 301 https://$host$request_uri;
+}`
+
+const defaultConfig = `server {
+	listen 443 ssl default_server;
+	listen [::]:443 ssl default_server;
+
+	server_name _;
 
 	location / {
 		return 503 "no backends configured - please try again";
 	}
-}`
+}
+`
 
 // NginxGenerator produces nginx upstream blocks for use for by an nginx
 // load balancer
@@ -53,12 +63,12 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 		// if there's no upstream, use default config.
 		// the default config is hardcoded for now
 
-		return defaultConfig, nil
+		return httpConfig + defaultConfig, nil
 	}
 
 	tmpl := template.New("upstream")
 	upstreamTemplate, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}
-	server {{.}}:{{$.ApplicationPort}};{{end}}
+server {{.}}:{{$.ApplicationPort}};{{end}}
 }
 `)
 
@@ -68,8 +78,12 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 	serverTmpl := template.New("server")
 	serverTemplate, err := serverTmpl.Parse(`server {
-	listen {{.ListenPort}};
-	listen [::]:{{.ListenPort}};
+	listen {{.ListenPort}} ssl;
+	listen [::]:{{.ListenPort}} ssl;
+
+	proxy_http_version 1.1;
+
+	{{.TlsConfig}}
 
 	server_name {{.Domain}};
 
@@ -103,7 +117,10 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 			return "", err
 		}
 
-		err = serverTemplate.Execute(serverBuf, k)
+		err = serverTemplate.Execute(serverBuf, struct {
+			Application
+			TlsConfig string
+		}{k, tlsConfig})
 
 		if err != nil {
 			return "", err
@@ -111,7 +128,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 	}
 
-	return upstreamBuf.String() + "\n\n" + serverBuf.String(), nil
+	return httpConfig + "\n\n" + upstreamBuf.String() + "\n\n" + serverBuf.String(), nil
 }
 
 // HandleRestart assumes we're running on a systemd system and that we have access

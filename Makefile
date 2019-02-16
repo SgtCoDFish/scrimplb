@@ -31,6 +31,7 @@ ARTIFACT/scrimplb.deb: clean bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VER
 	cp dist/debian/scrimplb.service BUILD/lib/systemd/system/
 	cp dist/debian/10-scrimplb-systemctl-restart BUILD/etc/sudoers.d/
 	cp dist/debian/nginx.conf BUILD/etc/scrimplb/
+	cp dist/debian/dhparam.pem BUILD/etc/scrimplb/
 	cp VERSION.txt BUILD/etc/scrimplb/
 	chmod 440 BUILD/etc/sudoers.d/10-scrimplb-systemctl-restart
 	docker run -it --rm -v $(shell pwd)/:/fpm fpm:latest -s dir -t deb \

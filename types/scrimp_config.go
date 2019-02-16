@@ -209,7 +209,15 @@ func initialiseBackendConfig(config *ScrimpConfig) error {
 	}
 
 	if len(config.BackendConfig.Applications) == 0 {
-		return errors.New(`no appliations given in config file. creating a backend with no applications is pointless`)
+		return errors.New(`no applications given in config file. creating a backend with no applications is pointless`)
+	}
+
+	for _, app := range config.BackendConfig.Applications {
+		if app.ListenPort == "80" {
+			return errors.New("invalid listen port '80' for application; only a redirect listener works on port 80")
+		}
+
+		// TODO: more validation
 	}
 
 	return nil
