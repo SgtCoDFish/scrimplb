@@ -9,6 +9,37 @@ import (
 	"github.com/pkg/errors"
 )
 
+const tlsConfig = `
+ssl_protocols TLSv1.2;
+ssl_prefer_server_ciphers on;
+ssl_session_timeout 1d;
+ssl_stapling on;
+ssl_stapling_verify on;
+ssl_session_cache shared:SSL:50m;
+ssl_session_tickets off;
+
+ssl_ciphers "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256";
+
+add_header X-Frame-Options "SAMEORIGIN";
+add_header X-Content-Type-Options "nosniff";
+add_header X-XSS-Protection "1; mode=block";
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload";
+ssl_certificate /etc/ssl/fullchain.pem;
+ssl_certificate_key /etc/ssl/privkey.pem;
+ssl_dhparam /etc/ssl/dhparam.pem;
+`
+
+const defaultConfig = `server {
+	listen 80;
+	listen [::]:80;
+
+	server_name _ default_server;
+
+	location / {
+		return 503 "no backends configured - please try again";
+	}
+}`
+
 // NginxGenerator produces nginx upstream blocks for use for by an nginx
 // load balancer
 type NginxGenerator struct {
@@ -17,6 +48,13 @@ type NginxGenerator struct {
 // GenerateConfig returns nginx upstream config for the given UpstreamApplicationMap
 func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (string, error) {
 	appMap := MakeApplicationMap(upstreamMap)
+
+	if len(appMap) == 0 {
+		// if there's no upstream, use default config.
+		// the default config is hardcoded for now
+
+		return defaultConfig, nil
+	}
 
 	tmpl := template.New("upstream")
 	upstreamTemplate, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}

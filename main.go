@@ -75,13 +75,27 @@ func main() {
 	log.Println("listening as", localNode.Name, localNode.Addr)
 
 	if config.ProviderName == "" {
-		log.Printf("Warning: No provider given, so this node may be orphaned")
+		log.Printf("Warning: No provider given; this node may be orphaned")
 	} else {
 		log.Printf("joining cluster with provider '%s'\n", config.ProviderName)
-		err = initFromSeed(list, config)
 
-		if err != nil {
-			handleErr(err)
+		initSuccessful := false
+		var err error
+		// retry multiple times as we could be hitting a race condition during init on system boot
+		for i := 0; i < 3; i++ {
+			err = initFromSeed(list, config)
+
+			if err == nil {
+				initSuccessful = true
+				break
+			} else {
+				log.Printf("attempt %d to initialise from seed failed: %v\n", i, err)
+				time.Sleep(time.Second * 5)
+			}
+		}
+
+		if !initSuccessful {
+			handleErr(errors.Wrap(err, "failed to initialise from seed"))
 		}
 	}
 
