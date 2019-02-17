@@ -9,8 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const tlsConfig = `
-	ssl_protocols TLSv1.2;
+const tlsConfig = `ssl_protocols TLSv1.2;
 	ssl_prefer_server_ciphers on;
 	ssl_session_timeout 1d;
 	ssl_stapling on;
@@ -68,7 +67,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 	tmpl := template.New("upstream")
 	upstreamTemplate, err := tmpl.Parse(`upstream {{.Name}} { {{range .Addresses}}
-server {{.}}:{{$.ApplicationPort}};{{end}}
+	server {{.}}:{{$.ApplicationPort}};{{end}}
 }
 `)
 
