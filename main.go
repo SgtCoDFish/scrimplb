@@ -55,6 +55,8 @@ func main() {
 		memberlistConfig.Events = &eventDelegate
 
 		go handleUpstreamNotification(config, upstreamNotificationChannel)
+
+		upstreamNotificationChannel <- make(types.UpstreamApplicationMap)
 	} else {
 		delegate, err := types.NewBackendDelegate(config.BackendConfig)
 

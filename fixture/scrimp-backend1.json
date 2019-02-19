@@ -7,7 +7,7 @@
 	"backend-config": {
 		"applications": [{
 			"name": "nginx",
-			"listen-port": "80",
+			"listen-port": "443",
 			"application-port": "4444",
 			"domain": "nginx.example.com",
 			"protocol": "http"

@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"os/exec"
 	"text/template"
@@ -12,8 +13,6 @@ import (
 const tlsConfig = `ssl_protocols TLSv1.2;
 	ssl_prefer_server_ciphers on;
 	ssl_session_timeout 1d;
-	ssl_stapling on;
-	ssl_stapling_verify on;
 	ssl_session_cache shared:SSL:50m;
 	ssl_session_tickets off;
 
@@ -43,8 +42,10 @@ const defaultConfig = `server {
 
 	server_name _;
 
+	%s
+
 	location / {
-		return 503 "no backends configured - please try again";
+		return 503 "<!DOCTYPE html><html><head><meta charset="utf-8"><title>no backends configured</title></head><body><p>no backends configured - please try again</p></body></html>";
 	}
 }
 `
@@ -62,7 +63,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 		// if there's no upstream, use default config.
 		// the default config is hardcoded for now
 
-		return httpConfig + defaultConfig, nil
+		return httpConfig + "\n\n" + fmt.Sprintf(defaultConfig, tlsConfig), nil
 	}
 
 	tmpl := template.New("upstream")
@@ -82,7 +83,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 	proxy_http_version 1.1;
 
-	{{.TlsConfig}}
+	{{.TLSConfig}}
 
 	server_name {{.Domain}};
 
@@ -118,7 +119,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (stri
 
 		err = serverTemplate.Execute(serverBuf, struct {
 			Application
-			TlsConfig string
+			TLSConfig string
 		}{k, tlsConfig})
 
 		if err != nil {
