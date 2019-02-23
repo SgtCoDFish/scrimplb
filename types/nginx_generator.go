@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const tlsConfig = `ssl_protocols TLSv1.2;
+const rawTlsConfig = `ssl_protocols TLSv1.2;
 	ssl_prefer_server_ciphers on;
 	ssl_session_timeout 1d;
 	ssl_session_cache shared:SSL:50m;
@@ -22,8 +22,8 @@ const tlsConfig = `ssl_protocols TLSv1.2;
 	add_header X-Content-Type-Options "nosniff";
 	add_header X-XSS-Protection "1; mode=block";
 	add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload";
-	ssl_certificate /etc/ssl/fullchain.pem;
-	ssl_certificate_key /etc/ssl/privkey.pem;
+	ssl_certificate %s;
+	ssl_certificate_key %s;
 	ssl_dhparam /etc/scrimplb/dhparam.pem;
 `
 
@@ -56,8 +56,11 @@ type NginxGenerator struct {
 }
 
 // GenerateConfig returns nginx upstream config for the given UpstreamApplicationMap
-func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap) (string, error) {
+func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap, config *ScrimpConfig) (string, error) {
 	appMap := MakeApplicationMap(upstreamMap)
+
+	// TODO: this should be another template in the long term
+	tlsConfig := fmt.Sprintf(rawTlsConfig, config.LoadBalancerConfig.TLSChainLocation, config.LoadBalancerConfig.TLSKeyLocation)
 
 	if len(appMap) == 0 {
 		// if there's no upstream, use default config.

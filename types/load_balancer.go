@@ -17,6 +17,8 @@ type LoadBalancerConfig struct {
 	GeneratorType        string `json:"generator"`
 	GeneratorTarget      string `json:"generator-target"`
 	GeneratorPrintStdout bool   `json:"generator-stdout"`
+	TLSChainLocation     string `json:"tls-chain-location"`
+	TLSKeyLocation       string `json:"tls-key-location"`
 	Generator            Generator
 	PushPeriod           time.Duration
 	PushJitter           time.Duration

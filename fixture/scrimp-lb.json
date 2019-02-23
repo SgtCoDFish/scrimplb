@@ -7,7 +7,9 @@
 		"push-period": "5s",
 		"push-jitter": "1s",
 		"generator": "nginx",
-		"generator-stdout": true
+		"generator-stdout": true,
+		"tls-chain-location": "/fixture/chain.pem",
+		"tls-key-location": "/fixture/leaf-key.pem"
 	},
 	"resolver": "dummy"
 }

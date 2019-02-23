@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	defaultPushPeriod = "30s"
-	defaultPushJitter = "2s"
+	defaultPushPeriod       = "60s"
+	defaultPushJitter       = "5s"
+	defaultTLSChainLocation = "/etc/ssl/chain.pem"
+	defaultTLSKeyLocation   = "/etc/ssl/key.pem"
 )
 
 // ScrimpConfig describes JSON configuration options for Scrimp overall.
@@ -166,6 +168,14 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 
 		if config.LoadBalancerConfig.GeneratorType == "" {
 			config.LoadBalancerConfig.GeneratorType = "dummy"
+		}
+
+		if config.LoadBalancerConfig.TLSChainLocation == "" {
+			config.LoadBalancerConfig.TLSChainLocation = defaultTLSChainLocation
+		}
+
+		if config.LoadBalancerConfig.TLSKeyLocation == "" {
+			config.LoadBalancerConfig.TLSKeyLocation = defaultTLSKeyLocation
 		}
 	}
 

@@ -171,7 +171,7 @@ func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan types.Upst
 	for {
 		time.Sleep(5 * time.Second)
 		val := <-ch
-		txt, err := config.LoadBalancerConfig.Generator.GenerateConfig(val)
+		txt, err := config.LoadBalancerConfig.Generator.GenerateConfig(val, config)
 
 		if err != nil {
 			log.Println(err)

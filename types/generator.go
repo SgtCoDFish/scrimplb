@@ -2,7 +2,7 @@ package types
 
 // Generator provides an interface for generating configuration values based on backend configuration
 type Generator interface {
-	GenerateConfig(UpstreamApplicationMap) (string, error)
+	GenerateConfig(UpstreamApplicationMap, *ScrimpConfig) (string, error)
 	HandleRestart() error
 }
 
