@@ -37,8 +37,8 @@ func (p *PushTask) Loop() {
 
 		time.Sleep(p.sleepTime)
 
-		randMs := time.Duration(rand.Int63n(p.maxJitter.Nanoseconds())).Round(time.Millisecond)
-		time.Sleep(randMs)
+		randSleep := time.Duration(rand.Int63n(p.maxJitter.Nanoseconds())).Round(time.Millisecond)
+		time.Sleep(randSleep)
 
 		err := p.config.Provider.PushSeed(p.config.Resolver, p.config.PortRaw)
 

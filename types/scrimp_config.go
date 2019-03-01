@@ -3,6 +3,9 @@ package types
 import (
 	"encoding/json"
 	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -75,10 +78,10 @@ func LoadScrimpConfig(configFile string) (*ScrimpConfig, error) {
 		}
 	}
 
-	// Load balancers need a resolver of some kind
+	// a load balancer needs a resolver of some kind
 	config.ResolverName = strings.ToLower(config.ResolverName)
 	if config.IsLoadBalancer && config.ResolverName == "" {
-		return nil, errors.New("load balancers require a valid IP resolver in config")
+		return nil, errors.New("a load balancer require a valid IP resolver in config")
 	}
 
 	if config.ResolverName != "" {
@@ -218,8 +221,18 @@ func initialiseBackendConfig(config *ScrimpConfig) error {
 		return errors.New(`missing backend config for '"lb": false' in config file. creating a backend with no applications is pointless`)
 	}
 
+	if config.BackendConfig.ApplicationConfigDir != "" {
+		extraApplications, err := configDirWalker(config.BackendConfig.ApplicationConfigDir)
+
+		if err != nil {
+			return err
+		}
+
+		config.BackendConfig.Applications = append(config.BackendConfig.Applications, extraApplications...)
+	}
+
 	if len(config.BackendConfig.Applications) == 0 {
-		return errors.New(`no applications given in config file. creating a backend with no applications is pointless`)
+		return errors.New(`no applications given in config file or loaded from a config dir. creating a backend with no applications is pointless`)
 	}
 
 	for _, app := range config.BackendConfig.Applications {
@@ -231,4 +244,68 @@ func initialiseBackendConfig(config *ScrimpConfig) error {
 	}
 
 	return nil
+}
+
+// configDirWalker iterates over JSON config files in a directory and
+// returns the parsed JSON config. This is useful for an upstream server
+// so that each installed application can install its config
+// into a pre-known location.
+func configDirWalker(path string) (applications []Application, err error) {
+	type configFile struct {
+		Path string
+		File os.FileInfo
+	}
+
+	var configFiles []configFile
+
+	err = filepath.Walk(path, func(path string, f os.FileInfo, err error) error {
+		configFiles = append(configFiles, configFile{path, f})
+		return nil
+	})
+
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errors.Errorf("Config folder does not exist: %s", path)
+		}
+
+		return nil, errors.Wrapf(err, "couldn't read files from %s", path)
+	}
+
+	if len(configFiles) == 0 {
+		return nil, nil
+	}
+
+	for _, f := range configFiles {
+		if f.File == nil || f.File.IsDir() {
+			continue
+		}
+
+		fd, err := os.Open(f.Path)
+
+		if err != nil {
+			log.Printf("couldn't load %s: %v", f.Path, err)
+			continue
+		}
+
+		rawContents, err := ioutil.ReadAll(fd)
+
+		if err != nil {
+			log.Printf("couldn't read %s: %v", f.Path, err)
+			continue
+		}
+
+		var application Application
+
+		err = json.Unmarshal(rawContents, &application)
+
+		if err != nil {
+			log.Printf("couldn't parse %s: %v", f.Path, err)
+			continue
+		}
+
+		applications = append(applications, application)
+		log.Printf("loaded application from %s: %s", f.Path, application.Name)
+	}
+
+	return applications, nil
 }

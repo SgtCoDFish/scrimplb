@@ -5,6 +5,7 @@
 		"ip": "[fd02:c0df:1500:1::10]"
 	},
 	"backend-config": {
+		"application-config-dir": "/fixture/applications",
 		"applications": [{
 			"name": "nginx",
 			"listen-port": "443",

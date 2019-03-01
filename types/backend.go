@@ -7,7 +7,8 @@ import (
 
 // BackendConfig describes configuration for backend instances
 type BackendConfig struct {
-	Applications []Application `json:"applications"`
+	Applications         []Application `json:"applications"`
+	ApplicationConfigDir string        `json:"application-config-dir"`
 }
 
 // BackendMetadata is returned by node metadata in the cluster, and describes
