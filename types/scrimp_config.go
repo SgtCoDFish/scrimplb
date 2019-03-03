@@ -240,6 +240,10 @@ func initialiseBackendConfig(config *ScrimpConfig) error {
 			return errors.New("invalid listen port '80' for application; only a redirect listener works on port 80")
 		}
 
+		if len(app.Domains) == 0 {
+			return errors.New("applications must have at least one domain")
+		}
+
 		// TODO: more validation
 	}
 

@@ -2,6 +2,6 @@
 	"name": "app2",
 	"listen-port": "443",
 	"application-port": "4072",
-	"domains": ["app2.example.com"],
+	"domains": ["app2.example.com", "app3.example.com"],
 	"protocol": "http"
 }

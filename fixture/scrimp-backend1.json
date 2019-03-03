@@ -12,12 +12,6 @@
 			"application-port": "4444",
 			"domains": ["nginx.example.com"],
 			"protocol": "http"
-		}, {
-			"name": "secure-nginx",
-			"listen-port": "443",
-			"application-port": "1234",
-			"domains": ["secure-nginx.example.com"],
-			"protocol": "https"
 		}]
 	}
 }
