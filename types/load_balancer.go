@@ -64,14 +64,14 @@ func (d *LoadBalancerDelegate) MergeRemoteState(buf []byte, join bool) {
 // LoadBalancerState provides state which is maintained by a load balancer
 // relating to the nodes in the cluster that it might forward on to.
 type LoadBalancerState struct {
-	MemberMap  UpstreamApplicationMap
+	MemberMap  map[Upstream][]Application
 	memberLock sync.RWMutex
 }
 
 // NewLoadBalancerState creates a load balancer state
 func NewLoadBalancerState() LoadBalancerState {
 	return LoadBalancerState{
-		make(UpstreamApplicationMap),
+		make(map[Upstream][]Application),
 		sync.RWMutex{},
 	}
 }
@@ -80,11 +80,11 @@ func NewLoadBalancerState() LoadBalancerState {
 // based on node metadata
 type LoadBalancerEventDelegate struct {
 	State                       LoadBalancerState
-	UpstreamNotificationChannel chan<- UpstreamApplicationMap
+	UpstreamNotificationChannel chan<- LoadBalancerState
 }
 
 // NewLoadBalancerEventDelegate creates a new LoadBalancerEventDelegate
-func NewLoadBalancerEventDelegate(notificationChannel chan<- UpstreamApplicationMap) LoadBalancerEventDelegate {
+func NewLoadBalancerEventDelegate(notificationChannel chan<- LoadBalancerState) LoadBalancerEventDelegate {
 	return LoadBalancerEventDelegate{
 		State:                       NewLoadBalancerState(),
 		UpstreamNotificationChannel: notificationChannel,
@@ -111,9 +111,15 @@ func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
 			node.Addr.String(),
 		}
 
+		var apps []Application
+
+		for _,v := range otherMeta.Applications {
+			apps = append(apps, v.ToApplication())
+		}
+
 		delete(d.State.MemberMap, key)
-		d.State.MemberMap[key] = otherMeta.Applications
-		d.UpstreamNotificationChannel <- d.State.MemberMap
+		d.State.MemberMap[key] = apps
+		d.UpstreamNotificationChannel <- d.State
 	}
 }
 
@@ -138,7 +144,7 @@ func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
 		}
 
 		delete(d.State.MemberMap, key)
-		d.UpstreamNotificationChannel <- d.State.MemberMap
+		d.UpstreamNotificationChannel <- d.State
 	}
 }
 
@@ -162,8 +168,14 @@ func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
 			node.Addr.String(),
 		}
 
+		var apps []Application
+
+		for _,v := range otherMeta.Applications {
+			apps = append(apps, v.ToApplication())
+		}
+
 		delete(d.State.MemberMap, key)
-		d.State.MemberMap[key] = otherMeta.Applications
-		d.UpstreamNotificationChannel <- d.State.MemberMap
+		d.State.MemberMap[key] = apps
+		d.UpstreamNotificationChannel <- d.State
 	}
 }

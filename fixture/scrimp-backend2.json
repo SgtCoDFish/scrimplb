@@ -9,13 +9,13 @@
 			"name": "nginx",
 			"listen-port": "443",
 			"application-port": "4444",
-			"domain": "nginx.example.com",
+			"domains": ["nginx.example.com"],
 			"protocol": "http"
 		}, {
 			"name": "someservice",
 			"listen-port": "5101",
 			"application-port": "4444",
-			"domain": "someservice.example.com",
+			"domains": ["someservice.example.com", "someservice.test.example.com"],
 			"protocol": "http"
 		}]
 	}

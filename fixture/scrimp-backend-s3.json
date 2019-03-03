@@ -11,13 +11,13 @@
 			"name": "nginx",
 			"application-port": "80",
 			"listen-port": "80",
-			"domain": "nginx.example.com",
+			"domains": ["nginx.example.com"],
 			"protocol": "http"
 		}, {
 			"name": "secure-nginx",
 			"application-port": "443",
 			"listen-port": "443",
-			"domain": "secure-nginx.example.com",
+			"domains": ["secure-nginx.example.com"],
 			"protocol": "https"
 		}]
 	}

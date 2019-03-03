@@ -61,13 +61,19 @@ type NginxGenerator struct {
 }
 
 // GenerateConfig returns nginx upstream config for the given UpstreamApplicationMap
-func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap, config *ScrimpConfig) (string, error) {
-	appMap := MakeApplicationMap(upstreamMap)
-
+func (n NginxGenerator) GenerateConfig(upstreamMap map[Upstream][]Application, config *ScrimpConfig) (string, error) {
 	// TODO: this should be another template in the long term
 	tlsConfig := fmt.Sprintf(rawTLSConfig, config.LoadBalancerConfig.TLSChainLocation, config.LoadBalancerConfig.TLSKeyLocation)
 
-	if len(appMap) == 0 {
+	applicationToAddress := make(map[Application][]string)
+
+	for upstream, apps := range upstreamMap {
+		for _, app := range apps {
+			applicationToAddress[app] = append(applicationToAddress[app], upstream.Address)
+		}
+	}
+
+	if len(upstreamMap) == 0 {
 		// if there's no upstream, use default config.
 		// the default config is hardcoded for now
 
@@ -93,7 +99,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap, confi
 
 	{{.TLSConfig}}
 
-	server_name {{.Domain}};
+	server_name {{.DomainString}};
 	server_tokens off;
 
 	location / {
@@ -111,15 +117,15 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap, confi
 	upstreamBuf := new(bytes.Buffer)
 	serverBuf := new(bytes.Buffer)
 
-	for k, v := range appMap {
+	for application, addresses := range applicationToAddress {
 		err := upstreamTemplate.Execute(upstreamBuf, struct {
 			Name            string
 			ApplicationPort string
 			Addresses       []string
 		}{
-			k.Name,
-			k.ApplicationPort,
-			v,
+			application.Name,
+			application.ApplicationPort,
+			addresses,
 		})
 
 		if err != nil {
@@ -128,13 +134,13 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap, confi
 
 		err = serverTemplate.Execute(serverBuf, struct {
 			Application
-			TLSConfig string
-		}{k, tlsConfig})
+			TLSConfig    string
+			DomainString string
+		}{application, tlsConfig, application.DomainString(" ")})
 
 		if err != nil {
 			return "", err
 		}
-
 	}
 
 	return httpConfig + "\n\n" + upstreamBuf.String() + "\n\n" + serverBuf.String(), nil

@@ -6,7 +6,3 @@ type Upstream struct {
 	Name    string
 	Address string
 }
-
-// UpstreamApplicationMap maps basic node details from a memberlist.Node to
-// the node's supported applications.
-type UpstreamApplicationMap map[Upstream][]Application

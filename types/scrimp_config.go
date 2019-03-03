@@ -250,7 +250,7 @@ func initialiseBackendConfig(config *ScrimpConfig) error {
 // returns the parsed JSON config. This is useful for an upstream server
 // so that each installed application can install its config
 // into a pre-known location.
-func configDirWalker(path string) (applications []Application, err error) {
+func configDirWalker(path string) (applications []JSONApplication, err error) {
 	type configFile struct {
 		Path string
 		File os.FileInfo
@@ -294,7 +294,7 @@ func configDirWalker(path string) (applications []Application, err error) {
 			continue
 		}
 
-		var application Application
+		var application JSONApplication
 
 		err = json.Unmarshal(rawContents, &application)
 

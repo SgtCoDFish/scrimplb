@@ -50,13 +50,13 @@ func main() {
 		delegate := types.NewLoadBalancerDelegate(make(chan<- string))
 		memberlistConfig.Delegate = delegate
 
-		upstreamNotificationChannel := make(chan types.UpstreamApplicationMap)
+		upstreamNotificationChannel := make(chan types.LoadBalancerState)
 		eventDelegate := types.NewLoadBalancerEventDelegate(upstreamNotificationChannel)
 		memberlistConfig.Events = &eventDelegate
 
 		go handleUpstreamNotification(config, upstreamNotificationChannel)
 
-		upstreamNotificationChannel <- make(types.UpstreamApplicationMap)
+		upstreamNotificationChannel <- types.LoadBalancerState{}
 	} else {
 		delegate, err := types.NewBackendDelegate(config.BackendConfig)
 
@@ -167,11 +167,11 @@ func initPusher(config *types.ScrimpConfig) error {
 	return nil
 }
 
-func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan types.UpstreamApplicationMap) {
+func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan types.LoadBalancerState) {
 	for {
 		time.Sleep(5 * time.Second)
 		val := <-ch
-		txt, err := config.LoadBalancerConfig.Generator.GenerateConfig(val, config)
+		txt, err := config.LoadBalancerConfig.Generator.GenerateConfig(val.MemberMap, config)
 
 		if err != nil {
 			log.Println(err)

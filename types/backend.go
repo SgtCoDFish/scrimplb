@@ -7,7 +7,7 @@ import (
 
 // BackendConfig describes configuration for backend instances
 type BackendConfig struct {
-	Applications         []Application `json:"applications"`
+	Applications         []JSONApplication `json:"applications"`
 	ApplicationConfigDir string        `json:"application-config-dir"`
 }
 
@@ -15,7 +15,7 @@ type BackendConfig struct {
 // supported applications on the backend.
 type BackendMetadata struct {
 	Type         string        `json:"type"`
-	Applications []Application `json:"applications"`
+	Applications []JSONApplication `json:"applications"`
 }
 
 // BackendDelegate listens for messages from other cluster members requesting
