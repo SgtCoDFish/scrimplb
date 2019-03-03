@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const rawTlsConfig = `ssl_protocols TLSv1.2;
+const rawTLSConfig = `ssl_protocols TLSv1.2;
 	ssl_prefer_server_ciphers on;
 	ssl_session_timeout 1d;
 	ssl_session_cache shared:SSL:50m;
@@ -31,6 +31,8 @@ const httpConfig = `server {
 	listen 80 default_server;
 	listen [::]:80 default_server;
 
+	server_tokens off;
+
 	server_name _;
 
 	return 301 https://$host$request_uri;
@@ -40,12 +42,15 @@ const defaultConfig = `server {
 	listen 443 ssl default_server;
 	listen [::]:443 ssl default_server;
 
+	server_tokens off;
+
 	server_name _;
 
 	%s
 
 	location / {
-		return 503 "<!DOCTYPE html><html><head><meta charset="utf-8"><title>no backends configured</title></head><body><p>no backends configured - please try again</p></body></html>";
+		default_type text/html;
+		return 503 "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>no backends configured</title></head><body><p>no backends configured - please try again soon</p></body></html>";
 	}
 }
 `
@@ -60,7 +65,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap, confi
 	appMap := MakeApplicationMap(upstreamMap)
 
 	// TODO: this should be another template in the long term
-	tlsConfig := fmt.Sprintf(rawTlsConfig, config.LoadBalancerConfig.TLSChainLocation, config.LoadBalancerConfig.TLSKeyLocation)
+	tlsConfig := fmt.Sprintf(rawTLSConfig, config.LoadBalancerConfig.TLSChainLocation, config.LoadBalancerConfig.TLSKeyLocation)
 
 	if len(appMap) == 0 {
 		// if there's no upstream, use default config.
@@ -89,6 +94,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap UpstreamApplicationMap, confi
 	{{.TLSConfig}}
 
 	server_name {{.Domain}};
+	server_tokens off;
 
 	location / {
 		proxy_pass {{.Protocol}}://{{.Name}};
