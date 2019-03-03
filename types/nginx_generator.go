@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const rawTLSConfig = `ssl_protocols TLSv1.2;
+const rawExtraConfig = `ssl_protocols TLSv1.2;
 	ssl_prefer_server_ciphers on;
 	ssl_session_timeout 1d;
 	ssl_session_cache shared:SSL:50m;
@@ -21,10 +21,21 @@ const rawTLSConfig = `ssl_protocols TLSv1.2;
 	add_header X-Frame-Options "SAMEORIGIN";
 	add_header X-Content-Type-Options "nosniff";
 	add_header X-XSS-Protection "1; mode=block";
+	add_header Referrer-Policy "no-referrer-when-downgrade";
 	add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload";
 	ssl_certificate %s;
 	ssl_certificate_key %s;
 	ssl_dhparam /etc/scrimplb/dhparam.pem;
+
+	gzip on;
+	gzip_disable "msie6";
+	gzip_vary on;
+	gzip_proxied any;
+	gzip_comp_level 6;
+	gzip_buffers 32 16k;
+	gzip_http_version 1.1;
+	gzip_min_length 250;
+	gzip_types image/jpeg image/bmp image/svg+xml text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript image/x-icon;
 `
 
 const httpConfig = `server {
@@ -39,8 +50,8 @@ const httpConfig = `server {
 }`
 
 const defaultConfig = `server {
-	listen 443 ssl default_server;
-	listen [::]:443 ssl default_server;
+	listen 443 ssl http2 default_server;
+	listen [::]:443 ssl http2 default_server;
 
 	server_tokens off;
 
@@ -63,7 +74,7 @@ type NginxGenerator struct {
 // GenerateConfig returns nginx upstream config for the given UpstreamApplicationMap
 func (n NginxGenerator) GenerateConfig(upstreamMap map[Upstream][]Application, config *ScrimpConfig) (string, error) {
 	// TODO: this should be another template in the long term
-	tlsConfig := fmt.Sprintf(rawTLSConfig, config.LoadBalancerConfig.TLSChainLocation, config.LoadBalancerConfig.TLSKeyLocation)
+	extraConfig := fmt.Sprintf(rawExtraConfig, config.LoadBalancerConfig.TLSChainLocation, config.LoadBalancerConfig.TLSKeyLocation)
 
 	applicationToAddress := make(map[Application][]string)
 
@@ -77,7 +88,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap map[Upstream][]Application, c
 		// if there's no upstream, use default config.
 		// the default config is hardcoded for now
 
-		return httpConfig + "\n\n" + fmt.Sprintf(defaultConfig, tlsConfig), nil
+		return httpConfig + "\n\n" + fmt.Sprintf(defaultConfig, extraConfig), nil
 	}
 
 	tmpl := template.New("upstream")
@@ -92,8 +103,8 @@ func (n NginxGenerator) GenerateConfig(upstreamMap map[Upstream][]Application, c
 
 	serverTmpl := template.New("server")
 	serverTemplate, err := serverTmpl.Parse(`server {
-	listen {{.ListenPort}} ssl;
-	listen [::]:{{.ListenPort}} ssl;
+	listen {{.ListenPort}} ssl http2;
+	listen [::]:{{.ListenPort}} ssl http2;
 
 	proxy_http_version 1.1;
 
@@ -136,7 +147,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap map[Upstream][]Application, c
 			Application
 			TLSConfig    string
 			DomainString string
-		}{application, tlsConfig, application.DomainString(" ")})
+		}{application, extraConfig, application.DomainString(" ")})
 
 		if err != nil {
 			return "", err

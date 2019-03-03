@@ -80,11 +80,11 @@ func NewLoadBalancerState() LoadBalancerState {
 // based on node metadata
 type LoadBalancerEventDelegate struct {
 	State                       LoadBalancerState
-	UpstreamNotificationChannel chan<- LoadBalancerState
+	UpstreamNotificationChannel chan<- *LoadBalancerState
 }
 
 // NewLoadBalancerEventDelegate creates a new LoadBalancerEventDelegate
-func NewLoadBalancerEventDelegate(notificationChannel chan<- LoadBalancerState) LoadBalancerEventDelegate {
+func NewLoadBalancerEventDelegate(notificationChannel chan<- *LoadBalancerState) LoadBalancerEventDelegate {
 	return LoadBalancerEventDelegate{
 		State:                       NewLoadBalancerState(),
 		UpstreamNotificationChannel: notificationChannel,
@@ -113,13 +113,13 @@ func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
 
 		var apps []Application
 
-		for _,v := range otherMeta.Applications {
+		for _, v := range otherMeta.Applications {
 			apps = append(apps, v.ToApplication())
 		}
 
 		delete(d.State.MemberMap, key)
 		d.State.MemberMap[key] = apps
-		d.UpstreamNotificationChannel <- d.State
+		d.UpstreamNotificationChannel <- &d.State
 	}
 }
 
@@ -144,7 +144,7 @@ func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
 		}
 
 		delete(d.State.MemberMap, key)
-		d.UpstreamNotificationChannel <- d.State
+		d.UpstreamNotificationChannel <- &d.State
 	}
 }
 
@@ -170,12 +170,12 @@ func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
 
 		var apps []Application
 
-		for _,v := range otherMeta.Applications {
+		for _, v := range otherMeta.Applications {
 			apps = append(apps, v.ToApplication())
 		}
 
 		delete(d.State.MemberMap, key)
 		d.State.MemberMap[key] = apps
-		d.UpstreamNotificationChannel <- d.State
+		d.UpstreamNotificationChannel <- &d.State
 	}
 }

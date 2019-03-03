@@ -14,6 +14,8 @@ type JSONApplication struct {
 	Domains         []string `json:"domains"`
 }
 
+// ToApplication turns a JSON loaded application into an application. This is needed to keep
+// Applications comparable (since slices aren't) and therefore usable as map keys.
 func (a *JSONApplication) ToApplication() Application {
 	sort.Slice(a.Domains, func(i, j int) bool {
 		return a.Domains[i] < a.Domains[j]
@@ -21,11 +23,11 @@ func (a *JSONApplication) ToApplication() Application {
 
 	domainString := strings.Join(a.Domains, " ")
 	return Application{
-		Name: a.Name,
-		ListenPort: a.ListenPort,
+		Name:            a.Name,
+		ListenPort:      a.ListenPort,
 		ApplicationPort: a.ApplicationPort,
-		Protocol: a.Protocol,
-		domains: domainString,
+		Protocol:        a.Protocol,
+		domains:         domainString,
 	}
 }
 
@@ -39,7 +41,7 @@ type Application struct {
 	domains         string
 }
 
-// ApplicationsEqual implements an equality check for two Applications
+// Equal implements an equality check for two Applications
 func (a *Application) Equal(other Application) bool {
 	return a.Name == other.Name && a.ListenPort == other.ListenPort && a.ApplicationPort == other.ApplicationPort && a.Protocol == other.Protocol && a.domains == other.domains
 }

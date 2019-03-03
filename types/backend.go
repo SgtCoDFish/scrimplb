@@ -8,13 +8,13 @@ import (
 // BackendConfig describes configuration for backend instances
 type BackendConfig struct {
 	Applications         []JSONApplication `json:"applications"`
-	ApplicationConfigDir string        `json:"application-config-dir"`
+	ApplicationConfigDir string            `json:"application-config-dir"`
 }
 
 // BackendMetadata is returned by node metadata in the cluster, and describes
 // supported applications on the backend.
 type BackendMetadata struct {
-	Type         string        `json:"type"`
+	Type         string            `json:"type"`
 	Applications []JSONApplication `json:"applications"`
 }
 

@@ -73,7 +73,7 @@ staticcheck:
 .PHONY: lint
 lint:
 	@echo "+ $@"
-	@if [[ ! -z "$(shell golint ./... | grep -v vendor | tee /dev/stderr)" ]]; then exit 1; fi
+	@if [[ ! -z '$(shell golint ./... | grep -v vendor | tee /dev/stderr)' ]]; then exit 1; fi
 
 
 .PHONY: verify-vendor
