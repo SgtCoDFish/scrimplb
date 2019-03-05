@@ -7,6 +7,7 @@ GO := go
 
 # some targets taken from https://github.com/genuinetools/img/blob/2e8ff3a3c55b6e0ca48cf1cd2dc8d308561755ac/basic.mk
 
+.PHONY: ci
 ci: clean vet fmt lint staticcheck verify-vendor bin/$(NAME)
 
 .PHONY: build
@@ -17,11 +18,11 @@ build-linux-rel: bin/$(NAME)-linux-rel
 
 bin/$(NAME): $(wildcard *.go) $(wildcard */*.go)
 	mkdir -p bin
-	$(GO) build -o $@ .
+	$(GO) build -mod=vendor -o $@ .
 
 bin/$(NAME)-linux-rel: $(wildcard *.go) $(wildcard */*.go)
 	mkdir -p bin
-	GOOS=linux $(GO) build -o $@ -ldflags '-s -w' .
+	GOOS=linux $(GO) build -mod=vendor -o $@ -ldflags '-s -w' .
 
 # Uses docker-fpm to build a deb
 ARTIFACT/scrimplb.deb: clean bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VERSION.txt
