@@ -1,8 +1,13 @@
 package types
 
 import (
+	"bufio"
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
+	"io"
 	"log"
 	"sync"
 	"time"
@@ -24,21 +29,106 @@ type LoadBalancerConfig struct {
 	PushJitter           time.Duration
 }
 
+func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
+	if config.LoadBalancerConfig == nil {
+		config.LoadBalancerConfig = &LoadBalancerConfig{
+			PushPeriodRaw:        defaultPushPeriod,
+			PushJitterRaw:        defaultPushJitter,
+			GeneratorType:        "dummy",
+			GeneratorTarget:      "",
+			GeneratorPrintStdout: false,
+		}
+	} else {
+		if config.LoadBalancerConfig.PushPeriodRaw == "" {
+			config.LoadBalancerConfig.PushPeriodRaw = defaultPushPeriod
+		}
+
+		if config.LoadBalancerConfig.PushJitterRaw == "" {
+			config.LoadBalancerConfig.PushJitterRaw = defaultPushJitter
+		}
+
+		if config.LoadBalancerConfig.GeneratorType == "" {
+			config.LoadBalancerConfig.GeneratorType = "dummy"
+		}
+
+		if config.LoadBalancerConfig.TLSChainLocation == "" {
+			config.LoadBalancerConfig.TLSChainLocation = defaultTLSChainLocation
+		}
+
+		if config.LoadBalancerConfig.TLSKeyLocation == "" {
+			config.LoadBalancerConfig.TLSKeyLocation = defaultTLSKeyLocation
+		}
+	}
+
+	pushPeriod, err := time.ParseDuration(config.LoadBalancerConfig.PushPeriodRaw)
+
+	if err != nil {
+		return errors.Wrap(err, "invalid push period for load balancer")
+	}
+
+	config.LoadBalancerConfig.PushPeriod = pushPeriod
+
+	pushJitter, err := time.ParseDuration(config.LoadBalancerConfig.PushJitterRaw)
+
+	if err != nil {
+		return errors.Wrap(err, "invalid push jitter for load balancer")
+	}
+
+	config.LoadBalancerConfig.PushJitter = pushJitter
+
+	switch config.LoadBalancerConfig.GeneratorType {
+	case "dummy":
+		config.LoadBalancerConfig.Generator = DummyGenerator{}
+
+	case "nginx":
+		config.LoadBalancerConfig.Generator = NginxGenerator{}
+
+	default:
+		err = errors.Errorf("invalid generator type %s", config.LoadBalancerConfig.GeneratorType)
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "couldn't create generator")
+	}
+
+	return nil
+}
+
+
 // LoadBalancerDelegate listens for requests from backend instances for information and schedules replies
 type LoadBalancerDelegate struct {
 	ch chan<- string
+	metadata []byte
 }
 
 // NewLoadBalancerDelegate creates a LoadBalancerDelegate from a channel which is used to receive work tasks
-func NewLoadBalancerDelegate(ch chan<- string) *LoadBalancerDelegate {
+func NewLoadBalancerDelegate(ch chan<- string) (*LoadBalancerDelegate, error) {
+	rawMetadata := []byte(`{"type": "load-balancer"}`)
+
+	var buf bytes.Buffer
+	gzipWriter := gzip.NewWriter(&buf)
+
+	_, err := gzipWriter.Write(rawMetadata)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't compress load balancer metadata")
+	}
+
+	err = gzipWriter.Close()
+
+	if err != nil {
+		return nil, errors.Wrap(err,"couldn't close gzip writer")
+	}
+
 	return &LoadBalancerDelegate{
 		ch,
-	}
+		buf.Bytes(),
+	}, nil
 }
 
 // NodeMeta returns metadata about this node
 func (d *LoadBalancerDelegate) NodeMeta(limit int) []byte {
-	return []byte(`{"type": "load-balancer"}`)
+	return d.metadata
 }
 
 // NotifyMsg receives messages from other cluster members. If the message was intended for a Load Balancer,
@@ -91,14 +181,43 @@ func NewLoadBalancerEventDelegate(notificationChannel chan<- *LoadBalancerState)
 	}
 }
 
+func parseMetadata(node *memberlist.Node) (*BackendMetadata, error) {
+	buf := bytes.NewReader(node.Meta)
+
+	gzipReader, err := gzip.NewReader(buf)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create gzip reader")
+	}
+
+	var rawMetadata bytes.Buffer
+	metadataWriter := bufio.NewWriter(&rawMetadata)
+
+	_, err = io.Copy(metadataWriter, gzipReader)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't copy from gzip reader")
+	}
+
+	err = gzipReader.Close()
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't close gzip reader")
+	}
+
+	var otherMeta BackendMetadata
+	err = json.Unmarshal(rawMetadata.Bytes(), &otherMeta)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &otherMeta, nil
+}
+
 // NotifyJoin adds new nodes to load balancer state
 func (d *LoadBalancerEventDelegate) NotifyJoin(node *memberlist.Node) {
 	d.State.memberLock.Lock()
 	defer d.State.memberLock.Unlock()
 
-	var otherMeta BackendMetadata
-
-	err := json.Unmarshal(node.Meta, &otherMeta)
+	otherMeta, err := parseMetadata(node)
 
 	if err != nil {
 		log.Printf("couldn't parse node metadata: %v", err)
@@ -128,9 +247,7 @@ func (d *LoadBalancerEventDelegate) NotifyLeave(node *memberlist.Node) {
 	d.State.memberLock.Lock()
 	defer d.State.memberLock.Unlock()
 
-	var otherMeta BackendMetadata
-
-	err := json.Unmarshal(node.Meta, &otherMeta)
+	otherMeta, err := parseMetadata(node)
 
 	if err != nil {
 		log.Printf("couldn't parse node metadata: %v", err)
@@ -153,14 +270,13 @@ func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
 	d.State.memberLock.Lock()
 	defer d.State.memberLock.Unlock()
 
-	var otherMeta BackendMetadata
-
-	err := json.Unmarshal(node.Meta, &otherMeta)
+	otherMeta, err := parseMetadata(node)
 
 	if err != nil {
 		log.Printf("couldn't parse node metadata: %v", err)
 		return
 	}
+
 
 	if otherMeta.Type == "backend" {
 		key := Upstream{

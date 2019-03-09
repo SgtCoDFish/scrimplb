@@ -2,15 +2,13 @@ package types
 
 import (
 	"encoding/json"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/resolver"
@@ -148,105 +146,6 @@ func initProvider(config *ScrimpConfig) error {
 	}
 
 	config.Provider = providerObject
-	return nil
-}
-
-func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
-	if config.LoadBalancerConfig == nil {
-		config.LoadBalancerConfig = &LoadBalancerConfig{
-			PushPeriodRaw:        defaultPushPeriod,
-			PushJitterRaw:        defaultPushJitter,
-			GeneratorType:        "dummy",
-			GeneratorTarget:      "",
-			GeneratorPrintStdout: false,
-		}
-	} else {
-		if config.LoadBalancerConfig.PushPeriodRaw == "" {
-			config.LoadBalancerConfig.PushPeriodRaw = defaultPushPeriod
-		}
-
-		if config.LoadBalancerConfig.PushJitterRaw == "" {
-			config.LoadBalancerConfig.PushJitterRaw = defaultPushJitter
-		}
-
-		if config.LoadBalancerConfig.GeneratorType == "" {
-			config.LoadBalancerConfig.GeneratorType = "dummy"
-		}
-
-		if config.LoadBalancerConfig.TLSChainLocation == "" {
-			config.LoadBalancerConfig.TLSChainLocation = defaultTLSChainLocation
-		}
-
-		if config.LoadBalancerConfig.TLSKeyLocation == "" {
-			config.LoadBalancerConfig.TLSKeyLocation = defaultTLSKeyLocation
-		}
-	}
-
-	pushPeriod, err := time.ParseDuration(config.LoadBalancerConfig.PushPeriodRaw)
-
-	if err != nil {
-		return errors.Wrap(err, "invalid push period for load balancer")
-	}
-
-	config.LoadBalancerConfig.PushPeriod = pushPeriod
-
-	pushJitter, err := time.ParseDuration(config.LoadBalancerConfig.PushJitterRaw)
-
-	if err != nil {
-		return errors.Wrap(err, "invalid push jitter for load balancer")
-	}
-
-	config.LoadBalancerConfig.PushJitter = pushJitter
-
-	switch config.LoadBalancerConfig.GeneratorType {
-	case "dummy":
-		config.LoadBalancerConfig.Generator = DummyGenerator{}
-
-	case "nginx":
-		config.LoadBalancerConfig.Generator = NginxGenerator{}
-
-	default:
-		err = errors.Errorf("invalid generator type %s", config.LoadBalancerConfig.GeneratorType)
-	}
-
-	if err != nil {
-		return errors.Wrap(err, "couldn't create generator")
-	}
-
-	return nil
-}
-
-func initialiseBackendConfig(config *ScrimpConfig) error {
-	if config.BackendConfig == nil {
-		return errors.New(`missing backend config for '"lb": false' in config file. creating a backend with no applications is pointless`)
-	}
-
-	if config.BackendConfig.ApplicationConfigDir != "" {
-		extraApplications, err := configDirWalker(config.BackendConfig.ApplicationConfigDir)
-
-		if err != nil {
-			return err
-		}
-
-		config.BackendConfig.Applications = append(config.BackendConfig.Applications, extraApplications...)
-	}
-
-	if len(config.BackendConfig.Applications) == 0 {
-		return errors.New(`no applications given in config file or loaded from a config dir. creating a backend with no applications is pointless`)
-	}
-
-	for _, app := range config.BackendConfig.Applications {
-		if app.ListenPort == "80" {
-			return errors.New("invalid listen port '80' for application; only a redirect listener works on port 80")
-		}
-
-		if len(app.Domains) == 0 {
-			return errors.New("applications must have at least one domain")
-		}
-
-		// TODO: more validation
-	}
-
 	return nil
 }
 

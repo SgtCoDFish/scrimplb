@@ -1,14 +1,51 @@
 package types
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 )
 
 // BackendConfig describes configuration for backend instances
 type BackendConfig struct {
 	Applications         []JSONApplication `json:"applications"`
 	ApplicationConfigDir string            `json:"application-config-dir"`
+}
+
+func initialiseBackendConfig(config *ScrimpConfig) error {
+	if config.BackendConfig == nil {
+		return errors.New(`missing backend config for '"lb": false' in config file. creating a backend with no applications is pointless`)
+	}
+
+	if config.BackendConfig.ApplicationConfigDir != "" {
+		extraApplications, err := configDirWalker(config.BackendConfig.ApplicationConfigDir)
+
+		if err != nil {
+			return err
+		}
+
+		config.BackendConfig.Applications = append(config.BackendConfig.Applications, extraApplications...)
+	}
+
+	if len(config.BackendConfig.Applications) == 0 {
+		return errors.New(`no applications given in config file or loaded from a config dir. creating a backend with no applications is pointless`)
+	}
+
+	for _, app := range config.BackendConfig.Applications {
+		if app.ListenPort == "80" {
+			return errors.New("invalid listen port '80' for application; only a redirect listener works on port 80")
+		}
+
+		if len(app.Domains) == 0 {
+			return errors.New("applications must have at least one domain")
+		}
+
+		// TODO: more validation
+	}
+
+	return nil
 }
 
 // BackendMetadata is returned by node metadata in the cluster, and describes
@@ -37,8 +74,24 @@ func NewBackendDelegate(config *BackendConfig) (*BackendDelegate, error) {
 		return nil, err
 	}
 
+	var buf bytes.Buffer
+
+	gzipWriter := gzip.NewWriter(&buf)
+
+	_, err = gzipWriter.Write(rawMetadata)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't gzip application metadata")
+	}
+
+	err = gzipWriter.Close()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't close gzip metadata writer")
+	}
+
 	return &BackendDelegate{
-		rawMetadata,
+		buf.Bytes(),
 	}, nil
 }
 

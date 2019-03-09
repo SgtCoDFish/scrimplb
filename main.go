@@ -29,10 +29,7 @@ func main() {
 	}
 
 	config, err := types.LoadScrimpConfig(configFile)
-
-	if err != nil {
-		handleErr(err)
-	}
+	handleErr(err)
 
 	memberlistConfig := memberlist.DefaultLANConfig()
 
@@ -47,7 +44,9 @@ func main() {
 	memberlistConfig.RetransmitMult = 2
 
 	if config.IsLoadBalancer {
-		delegate := types.NewLoadBalancerDelegate(make(chan<- string))
+		delegate, err := types.NewLoadBalancerDelegate(make(chan<- string))
+		handleErr(err)
+
 		memberlistConfig.Delegate = delegate
 
 		upstreamNotificationChannel := make(chan *types.LoadBalancerState)
@@ -59,19 +58,13 @@ func main() {
 		upstreamNotificationChannel <- &types.LoadBalancerState{}
 	} else {
 		delegate, err := types.NewBackendDelegate(config.BackendConfig)
-
-		if err != nil {
-			handleErr(err)
-		}
+		handleErr(err)
 
 		memberlistConfig.Delegate = delegate
 	}
 
 	list, err := memberlist.Create(memberlistConfig)
-
-	if err != nil {
-		handleErr(err)
-	}
+	handleErr(err)
 
 	localNode := list.LocalNode()
 	log.Println("listening as", localNode.Name, localNode.Addr)
@@ -107,9 +100,7 @@ func main() {
 		err = initBackend(config)
 	}
 
-	if err != nil {
-		handleErr(err)
-	}
+	handleErr(err)
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -203,9 +194,7 @@ func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan *types.Loa
 func enumerateNetworkInterfaces() {
 	log.Println("enumerated network interfaces:")
 	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		handleErr(err)
-	}
+	handleErr(err)
 
 	for _, a := range addrs {
 		address, _, err := net.ParseCIDR(a.String())
@@ -219,5 +208,7 @@ func enumerateNetworkInterfaces() {
 }
 
 func handleErr(err error) {
-	panic(err)
+	if err != nil {
+		panic(err)
+	}
 }
