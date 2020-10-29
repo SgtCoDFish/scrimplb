@@ -1,10 +1,11 @@
-package types
+package scrimplb
 
 import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+
 	"github.com/pkg/errors"
 )
 

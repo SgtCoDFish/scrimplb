@@ -9,8 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sgtcodfish/scrimplb/types"
-	"github.com/sgtcodfish/scrimplb/worker"
+	"github.com/sgtcodfish/scrimplb"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/pkg/errors"
@@ -28,7 +27,7 @@ func main() {
 		enumerateNetworkInterfaces()
 	}
 
-	config, err := types.LoadScrimpConfig(configFile)
+	config, err := scrimplb.LoadScrimpConfig(configFile)
 	handleErr(err)
 
 	memberlistConfig := memberlist.DefaultLANConfig()
@@ -44,20 +43,20 @@ func main() {
 	memberlistConfig.RetransmitMult = 2
 
 	if config.IsLoadBalancer {
-		delegate, err := types.NewLoadBalancerDelegate(make(chan<- string))
+		delegate, err := scrimplb.NewLoadBalancerDelegate(make(chan<- string))
 		handleErr(err)
 
 		memberlistConfig.Delegate = delegate
 
-		upstreamNotificationChannel := make(chan *types.LoadBalancerState)
-		eventDelegate := types.NewLoadBalancerEventDelegate(upstreamNotificationChannel)
+		upstreamNotificationChannel := make(chan *scrimplb.LoadBalancerState)
+		eventDelegate := scrimplb.NewLoadBalancerEventDelegate(upstreamNotificationChannel)
 		memberlistConfig.Events = &eventDelegate
 
 		go handleUpstreamNotification(config, upstreamNotificationChannel)
 
-		upstreamNotificationChannel <- &types.LoadBalancerState{}
+		upstreamNotificationChannel <- &scrimplb.LoadBalancerState{}
 	} else {
-		delegate, err := types.NewBackendDelegate(config.BackendConfig)
+		delegate, err := scrimplb.NewBackendDelegate(config.BackendConfig)
 		handleErr(err)
 
 		memberlistConfig.Delegate = delegate
@@ -107,7 +106,7 @@ func main() {
 	wg.Wait()
 }
 
-func initLoadBalancer(config *types.ScrimpConfig) error {
+func initLoadBalancer(config *scrimplb.ScrimpConfig) error {
 	log.Println("initializing load balancer")
 
 	err := initPusher(config)
@@ -119,12 +118,12 @@ func initLoadBalancer(config *types.ScrimpConfig) error {
 	return nil
 }
 
-func initBackend(config *types.ScrimpConfig) error {
+func initBackend(config *scrimplb.ScrimpConfig) error {
 	log.Println("initializing backend")
 	return nil
 }
 
-func initFromSeed(list *memberlist.Memberlist, config *types.ScrimpConfig) error {
+func initFromSeed(list *memberlist.Memberlist, config *scrimplb.ScrimpConfig) error {
 	seedList, err := config.Provider.FetchSeed()
 
 	if err != nil {
@@ -145,20 +144,20 @@ func initFromSeed(list *memberlist.Memberlist, config *types.ScrimpConfig) error
 	return nil
 }
 
-func initPusher(config *types.ScrimpConfig) error {
+func initPusher(config *scrimplb.ScrimpConfig) error {
 	if config.ProviderName == "" {
 		log.Println("not starting pusher as no provider given")
 		return nil
 	}
 
 	log.Printf("initializing '%s' pusher", config.ProviderName)
-	pushTask := worker.NewPushTask(config)
+	pushTask := scrimplb.NewPushTask(config)
 	go pushTask.Loop()
 
 	return nil
 }
 
-func handleUpstreamNotification(config *types.ScrimpConfig, ch <-chan *types.LoadBalancerState) {
+func handleUpstreamNotification(config *scrimplb.ScrimpConfig, ch <-chan *scrimplb.LoadBalancerState) {
 	for {
 		time.Sleep(5 * time.Second)
 		val := <-ch

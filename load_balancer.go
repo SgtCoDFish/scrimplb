@@ -1,4 +1,4 @@
-package types
+package scrimplb
 
 import (
 	"bufio"
@@ -6,11 +6,12 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/hashicorp/memberlist"
 )
@@ -94,10 +95,9 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 	return nil
 }
 
-
 // LoadBalancerDelegate listens for requests from backend instances for information and schedules replies
 type LoadBalancerDelegate struct {
-	ch chan<- string
+	ch       chan<- string
 	metadata []byte
 }
 
@@ -117,7 +117,7 @@ func NewLoadBalancerDelegate(ch chan<- string) (*LoadBalancerDelegate, error) {
 	err = gzipWriter.Close()
 
 	if err != nil {
-		return nil, errors.Wrap(err,"couldn't close gzip writer")
+		return nil, errors.Wrap(err, "couldn't close gzip writer")
 	}
 
 	return &LoadBalancerDelegate{
@@ -276,7 +276,6 @@ func (d *LoadBalancerEventDelegate) NotifyUpdate(node *memberlist.Node) {
 		log.Printf("couldn't parse node metadata: %v", err)
 		return
 	}
-
 
 	if otherMeta.Type == "backend" {
 		key := Upstream{

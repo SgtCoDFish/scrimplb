@@ -1,4 +1,4 @@
-package types
+package scrimplb
 
 // Upstream is a condensed version of a backend with a name and an address
 // to be routed towards.

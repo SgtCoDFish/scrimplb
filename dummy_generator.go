@@ -1,4 +1,4 @@
-package types
+package scrimplb
 
 // DummyGenerator produces only dummy config.
 type DummyGenerator struct {
