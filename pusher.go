@@ -1,23 +1,21 @@
-package worker
+package scrimplb
 
 import (
 	"log"
 	"math/rand"
 	"time"
-
-	"github.com/sgtcodfish/scrimplb/types"
 )
 
 // PushTask runs a Pusher on a regular, config-defined basis
 type PushTask struct {
-	config       *types.ScrimpConfig
+	config       *ScrimpConfig
 	sleepTime    time.Duration
 	maxJitter    time.Duration
 	failureCount int
 }
 
 // NewPushTask creates a new PushTask with the given config
-func NewPushTask(config *types.ScrimpConfig) *PushTask {
+func NewPushTask(config *ScrimpConfig) *PushTask {
 	return &PushTask{
 		config,
 		config.LoadBalancerConfig.PushPeriod,

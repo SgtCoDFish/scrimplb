@@ -18,11 +18,11 @@ build-linux-rel: bin/$(NAME)-linux-rel
 
 bin/$(NAME): $(wildcard *.go) $(wildcard */*.go)
 	mkdir -p bin
-	$(GO) build -mod=vendor -o $@ .
+	$(GO) build -mod=vendor -o $@ cmd/scrimplb/main.go
 
 bin/$(NAME)-linux-rel: $(wildcard *.go) $(wildcard */*.go)
 	mkdir -p bin
-	GOOS=linux $(GO) build -mod=vendor -o $@ -ldflags '-s -w' .
+	GOOS=linux $(GO) build -mod=vendor -o $@ -ldflags '-s -w' cmd/scrimplb/main.go
 
 # Uses docker-fpm to build a deb
 ARTIFACT/scrimplb.deb: clean bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VERSION.txt

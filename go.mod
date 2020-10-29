@@ -1,5 +1,7 @@
 module github.com/sgtcodfish/scrimplb
 
+go 1.15
+
 require (
 	github.com/alecthomas/gometalinter v2.0.12+incompatible // indirect
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect

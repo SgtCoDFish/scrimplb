@@ -1,4 +1,4 @@
-package types
+package scrimplb
 
 // Generator provides an interface for generating configuration values based on backend configuration
 type Generator interface {
