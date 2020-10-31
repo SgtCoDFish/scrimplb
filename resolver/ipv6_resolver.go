@@ -1,11 +1,10 @@
 package resolver
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
-
-	"github.com/pkg/errors"
 )
 
 // IPv6UnicastResolver resolves the first available IPv6 Global Unicast address

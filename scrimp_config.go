@@ -2,14 +2,13 @@ package scrimplb
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/resolver"
@@ -80,7 +79,7 @@ func LoadScrimpConfig(configFile string) (*ScrimpConfig, error) {
 	// a load balancer needs a resolver of some kind
 	config.ResolverName = strings.ToLower(config.ResolverName)
 	if config.IsLoadBalancer && config.ResolverName == "" {
-		return nil, errors.New("a load balancer require a valid IP resolver in config")
+		return nil, fmt.Errorf("a load balancer require a valid IP resolver in config")
 	}
 
 	if config.ResolverName != "" {
@@ -116,11 +115,11 @@ func initResolver(config *ScrimpConfig) error {
 		resolverObject, err = resolver.NewIPv6UnicastResolver()
 
 	default:
-		return errors.Errorf("invalid resolver '%s'", config.ResolverName)
+		return fmt.Errorf("invalid resolver '%s'", config.ResolverName)
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "couldn't create IP resolver")
+		return fmt.Errorf("couldn't create IP resolver: %w", err)
 	}
 
 	config.Resolver = resolverObject
@@ -143,7 +142,7 @@ func initProvider(config *ScrimpConfig) error {
 	}
 
 	if err != nil {
-		return errors.Wrapf(err, "couldn't initialise provider '%s'", config.ProviderName)
+		return fmt.Errorf("couldn't initialise provider '%s': %w", config.ProviderName, err)
 	}
 
 	config.Provider = providerObject
@@ -169,10 +168,10 @@ func configDirWalker(path string) (applications []JSONApplication, err error) {
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, errors.Errorf("Config folder does not exist: %s", path)
+			return nil, fmt.Errorf("config folder does not exist: %s", path)
 		}
 
-		return nil, errors.Wrapf(err, "couldn't read files from %s", path)
+		return nil, fmt.Errorf("couldn't read files from %s: %w", path, err)
 	}
 
 	if len(configFiles) == 0 {

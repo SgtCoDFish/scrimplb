@@ -6,8 +6,6 @@ import (
 	"log"
 	"os/exec"
 	"text/template"
-
-	"github.com/pkg/errors"
 )
 
 const rawExtraConfig = `ssl_protocols TLSv1.2;
@@ -98,7 +96,7 @@ func (n NginxGenerator) GenerateConfig(upstreamMap map[Upstream][]Application, c
 `)
 
 	if err != nil {
-		return "", errors.Wrap(err, "couldn't parse template")
+		return "", fmt.Errorf("couldn't parse template: %w", err)
 	}
 
 	serverTmpl := template.New("server")
@@ -172,7 +170,7 @@ func (n NginxGenerator) HandleRestart() error {
 
 	if err != nil {
 		log.Printf("nginx restart failed:\nstdout: %s\nstderr: %s\n", stdout.String(), stderr.String())
-		return errors.Wrap(err, "failed to restart nginx")
+		return fmt.Errorf("failed to restart nginx: %w", err)
 	}
 
 	return nil

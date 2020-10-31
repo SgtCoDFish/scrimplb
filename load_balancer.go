@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/hashicorp/memberlist"
 )
 
@@ -64,7 +62,7 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 	pushPeriod, err := time.ParseDuration(config.LoadBalancerConfig.PushPeriodRaw)
 
 	if err != nil {
-		return errors.Wrap(err, "invalid push period for load balancer")
+		return fmt.Errorf("invalid push period for load balancer: %w", err)
 	}
 
 	config.LoadBalancerConfig.PushPeriod = pushPeriod
@@ -72,7 +70,7 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 	pushJitter, err := time.ParseDuration(config.LoadBalancerConfig.PushJitterRaw)
 
 	if err != nil {
-		return errors.Wrap(err, "invalid push jitter for load balancer")
+		return fmt.Errorf("invalid push jitter for load balancer: %w", err)
 	}
 
 	config.LoadBalancerConfig.PushJitter = pushJitter
@@ -85,11 +83,11 @@ func initialiseLoadBalancerConfig(config *ScrimpConfig) error {
 		config.LoadBalancerConfig.Generator = NginxGenerator{}
 
 	default:
-		err = errors.Errorf("invalid generator type %s", config.LoadBalancerConfig.GeneratorType)
+		err = fmt.Errorf("invalid generator type %s", config.LoadBalancerConfig.GeneratorType)
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "couldn't create generator")
+		return fmt.Errorf("couldn't create generator: %w", err)
 	}
 
 	return nil
@@ -111,13 +109,13 @@ func NewLoadBalancerDelegate(ch chan<- string) (*LoadBalancerDelegate, error) {
 	_, err := gzipWriter.Write(rawMetadata)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't compress load balancer metadata")
+		return nil, fmt.Errorf("couldn't compress load balancer metadata: %w", err)
 	}
 
 	err = gzipWriter.Close()
 
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't close gzip writer")
+		return nil, fmt.Errorf("couldn't close gzip writer: %w", err)
 	}
 
 	return &LoadBalancerDelegate{
@@ -186,7 +184,7 @@ func parseMetadata(node *memberlist.Node) (*BackendMetadata, error) {
 
 	gzipReader, err := gzip.NewReader(buf)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create gzip reader")
+		return nil, fmt.Errorf("couldn't create gzip reader: %w", err)
 	}
 
 	var rawMetadata bytes.Buffer
@@ -194,12 +192,12 @@ func parseMetadata(node *memberlist.Node) (*BackendMetadata, error) {
 
 	_, err = io.Copy(metadataWriter, gzipReader)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't copy from gzip reader")
+		return nil, fmt.Errorf("couldn't copy from gzip reader: %w", err)
 	}
 
 	err = gzipReader.Close()
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't close gzip reader")
+		return nil, fmt.Errorf("couldn't close gzip reader: %w", err)
 	}
 
 	var otherMeta BackendMetadata
