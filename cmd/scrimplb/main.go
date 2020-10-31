@@ -12,7 +12,6 @@ import (
 	"github.com/sgtcodfish/scrimplb"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/pkg/errors"
 )
 
 func main() {
@@ -89,7 +88,7 @@ func main() {
 		}
 
 		if !initSuccessful {
-			handleErr(errors.Wrap(err, "failed to initialise from seed"))
+			handleErr(fmt.Errorf("failed to initialise from seed: %w", err))
 		}
 	}
 
@@ -127,7 +126,7 @@ func initFromSeed(list *memberlist.Memberlist, config *scrimplb.ScrimpConfig) er
 	seedList, err := config.Provider.FetchSeed()
 
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch seed during initialization")
+		return fmt.Errorf("failed to fetch seed during initialization: %w", err)
 	}
 
 	var ips []string
@@ -138,7 +137,7 @@ func initFromSeed(list *memberlist.Memberlist, config *scrimplb.ScrimpConfig) er
 	_, err = list.Join(ips)
 
 	if err != nil {
-		return errors.Wrap(err, "couldn't join cluster")
+		return fmt.Errorf("couldn't join cluster: %w", err)
 	}
 
 	return nil

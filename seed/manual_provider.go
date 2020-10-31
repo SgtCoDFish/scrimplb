@@ -1,8 +1,9 @@
 package seed
 
 import (
+	"fmt"
+
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/resolver"
 )
@@ -20,11 +21,11 @@ func NewManualProvider(config map[string]interface{}) (*ManualProvider, error) {
 	err := mapstructure.Decode(config, &provider)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't parse manual provider from provider config")
+		return nil, fmt.Errorf("couldn't parse manual provider from provider config: %w", err)
 	}
 
 	if provider.IP == "" {
-		return nil, errors.Wrap(err, "couldn't parse ip from provider config")
+		return nil, fmt.Errorf("couldn't parse ip from provider config: %w", err)
 	}
 
 	if provider.Port == "" {

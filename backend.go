@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // BackendConfig describes configuration for backend instances
@@ -82,13 +81,13 @@ func NewBackendDelegate(config *BackendConfig) (*BackendDelegate, error) {
 	_, err = gzipWriter.Write(rawMetadata)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't gzip application metadata")
+		return nil, fmt.Errorf("couldn't gzip application metadata: %w", err)
 	}
 
 	err = gzipWriter.Close()
 
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't close gzip metadata writer")
+		return nil, fmt.Errorf("couldn't close gzip metadata writer: %w", err)
 	}
 
 	return &BackendDelegate{

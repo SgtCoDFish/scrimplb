@@ -3,6 +3,8 @@ package seed
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"github.com/sgtcodfish/scrimplb/constants"
 	"github.com/sgtcodfish/scrimplb/resolver"
 )
@@ -38,7 +39,7 @@ func NewS3Provider(config map[string]interface{}) (*S3Provider, error) {
 	err := mapstructure.Decode(config, &provider)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't parse s3 provider config")
+		return nil, fmt.Errorf("couldn't parse s3 provider config: %w", err)
 	}
 
 	if provider.Bucket == "" {
@@ -84,10 +85,10 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 				return Seeds{}, nil
 
 			default:
-				return Seeds{}, errors.Wrap(err, "unable to download seed")
+				return Seeds{}, fmt.Errorf("unable to download seed: %w", err)
 			}
 		} else {
-			return Seeds{}, errors.Wrap(err, "unable to download seed; non-AWS error")
+			return Seeds{}, fmt.Errorf("unable to download seed; non-AWS error: %w", err)
 		}
 	}
 
@@ -98,7 +99,7 @@ func (s *S3Provider) FetchSeed() (Seeds, error) {
 	err = json.Unmarshal(buf.Bytes(), &seeds)
 
 	if err != nil {
-		return Seeds{}, errors.Wrap(err, "unable to parse downloaded seed")
+		return Seeds{}, fmt.Errorf("unable to parse downloaded seed: %w", err)
 	}
 
 	return seeds, nil
@@ -136,7 +137,7 @@ func (s *S3Provider) PushSeed(resolver resolver.IPResolver, port string) error {
 		if awsErr, ok := err.(awserr.Error); ok {
 			switch awsErr.Code() {
 			case s3.ErrCodeNoSuchBucket:
-				return errors.Wrap(err, "unable to push seed - no such bucket")
+				return fmt.Errorf("unable to push seed - no such bucket: %w", err)
 
 			default:
 				// ignore
@@ -182,7 +183,7 @@ func (s *S3Provider) PushSeed(resolver resolver.IPResolver, port string) error {
 	out, err := json.Marshal(seeds)
 
 	if err != nil {
-		return errors.Wrap(err, "couldn't marshal output for S3")
+		return fmt.Errorf("couldn't marshal output for S3: %w", err)
 	}
 
 	uploader := s3manager.NewUploader(sess)
@@ -193,7 +194,7 @@ func (s *S3Provider) PushSeed(resolver resolver.IPResolver, port string) error {
 	})
 
 	if err != nil {
-		return errors.Wrap(err, "couldn't upload S3 content")
+		return fmt.Errorf("couldn't upload S3 content: %w", err)
 	}
 
 	log.Println("successfully pushed seed to s3")

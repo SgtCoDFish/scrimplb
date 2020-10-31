@@ -1,12 +1,11 @@
 package resolver
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // EC2IPResolver fetches the instance's local IP address from EC2 instance
@@ -62,7 +61,7 @@ func deduceMACAddress() (string, error) {
 	resp, err := http.Get("http://169.254.169.254/latest/meta-data/mac")
 
 	if err != nil {
-		return "", errors.Wrap(err, "couldn't fetch instance MAC address")
+		return "", fmt.Errorf("couldn't fetch instance MAC address: %w", err)
 	}
 
 	if resp.StatusCode != 200 {
@@ -73,7 +72,7 @@ func deduceMACAddress() (string, error) {
 	raw, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return "", errors.Wrap(err, "couldn't read instance MAC address")
+		return "", fmt.Errorf("couldn't read instance MAC address: %w", err)
 	}
 
 	return string(raw), nil
