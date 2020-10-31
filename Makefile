@@ -8,6 +8,8 @@ GO := go
 GOLANGCILINT = golangci-lint
 GOSTATICCHECK = staticcheck
 
+CTR_CMD=docker
+
 # some targets taken from https://github.com/genuinetools/img/blob/2e8ff3a3c55b6e0ca48cf1cd2dc8d308561755ac/basic.mk
 
 .PHONY: ci
@@ -63,42 +65,41 @@ lint:
 verify-vendor:
 	@$(GO) mod verify
 
-
-.PHONY: docker-network
-docker-network:
-	@if [[ -z "$(shell docker network ls | grep scrimplb | tee /dev/stderr)" ]]; then\
+.PHONY: ctr-network
+ctr-network:
+	@if [[ -z "$(shell $(CTR_CMD) network ls | grep scrimplb | tee /dev/stderr)" ]]; then\
 		echo "Creating scrimplb6 network";\
-		docker network create --ipv6 --subnet fd02:c0df:1500:1::/80 scrimplb6;\
+		$(CTR_CMD) network create --ipv6 --subnet fd02:c0df:1500:1::/80 scrimplb6;\
 	fi
 
-.PHONY: docker-image
-docker-image:
-	docker build --tag scrimp -t scrimp:latest .
+.PHONY: ctr-image
+ctr-image:
+	$(CTR_CMD) build --tag scrimp -t scrimp:latest .
 
-.PHONY: docker-run-lb
-docker-run-lb: docker-network
-	docker run -it --rm --network scrimplb6 --ip6 "fd02:c0df:1500:1::10" -v $(shell pwd)/fixture:/fixture  scrimp:latest -config-file /fixture/scrimp-lb.json
+.PHONY: ctr-run-lb
+ctr-run-lb: ctr-network
+	$(CTR_CMD) run -it --rm --network scrimplb6 --ip6 "fd02:c0df:1500:1::10" -v $(shell pwd)/fixture:/fixture  scrimp:latest -config-file /fixture/scrimp-lb.json
 
-.PHONY: docker-run-backend1
-docker-run-backend1: docker-network
-	docker run -it --rm --network scrimplb6 -v $(shell pwd)/fixture:/fixture scrimp:latest -config-file /fixture/scrimp-backend1.json
+.PHONY: ctr-run-backend1
+ctr-run-backend1: ctr-network
+	$(CTR_CMD) run -it --rm --network scrimplb6 -v $(shell pwd)/fixture:/fixture scrimp:latest -config-file /fixture/scrimp-backend1.json
 
-.PHONY: docker-run-backend2
-docker-run-backend2: docker-network
-	docker run -it --rm --network scrimplb6 -v $(shell pwd)/fixture:/fixture scrimp:latest -config-file /fixture/scrimp-backend2.json
+.PHONY: ctr-run-backend2
+ctr-run-backend2: ctr-network
+	$(CTR_CMD) run -it --rm --network scrimplb6 -v $(shell pwd)/fixture:/fixture scrimp:latest -config-file /fixture/scrimp-backend2.json
 
-.PHONY: docker-build-env
-docker-build-env: VERSION.txt Dockerfile.build
-	@if [[ -z '$(shell docker image ls --quiet scrimplb-build:$(VERSION))' ]]; then \
-		docker build -f Dockerfile.build -t scrimplb-build:$(VERSION) . ;\
+.PHONY: ctr-build-env
+ctr-build-env: VERSION.txt Dockerfile.build
+	@if [[ -z '$(shell $(CTR_CMD) image ls --quiet scrimplb-build:$(VERSION))' ]]; then \
+		$(CTR_CMD) build -f Dockerfile.build -t scrimplb-build:$(VERSION) . ;\
 	fi
 
-.PHONY: docker-ci
-docker-ci: docker-build-env
+.PHONY: ctr-ci
+ctr-ci: ctr-build-env
 	mkdir -p bin BUILD
-	docker run --rm -v "$$PWD:/work" scrimplb-build:$(VERSION) make ci
+	$(CTR_CMD) run --rm -v "$$PWD:/work" scrimplb-build:$(VERSION) make ci
 
-# Uses docker-fpm to build a deb
+# Uses $(CTR_CMD)-fpm to build a deb
 ARTIFACT/scrimplb.deb: clean bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VERSION.txt
 	mkdir -p ARTIFACT
 	mkdir -p BUILD/usr/bin BUILD/lib/systemd/system BUILD/etc/scrimplb BUILD/etc/sudoers.d
@@ -109,7 +110,7 @@ ARTIFACT/scrimplb.deb: clean bin/$(NAME)-linux-rel $(wildcard dist/debian/*) VER
 	cp dist/debian/dhparam.pem BUILD/etc/scrimplb/
 	cp VERSION.txt BUILD/etc/scrimplb/
 	chmod 440 BUILD/etc/sudoers.d/10-scrimplb-systemctl-restart
-	docker run -it --rm -v $(shell pwd)/:/fpm fpm:latest -s dir -t deb \
+	$(CTR_CMD) run -it --rm -v $(shell pwd)/:/fpm fpm:latest -s dir -t deb \
 		-n $(NAME) \
 		-v $(VERSION) \
 		-p /fpm/$@ \
