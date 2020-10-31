@@ -1,0 +1,15 @@
+FROM golang:1.15-buster
+
+ENV GO111MODULE=on
+
+WORKDIR /work
+
+RUN go get -u golang.org/x/lint/golint && \
+	curl -sSL -o /tmp/staticcheck.tar.gz https://github.com/dominikh/go-tools/releases/download/2020.1.6/staticcheck_linux_amd64.tar.gz && \
+	cd /tmp && tar xf staticcheck.tar.gz && \
+	mv staticcheck/staticcheck /usr/bin/staticcheck && \
+	chmod +x /usr/bin/staticcheck && \
+	curl -sSL -o /tmp/golangci-lint.tar.gz https://github.com/golangci/golangci-lint/releases/download/v1.32.1/golangci-lint-1.32.1-linux-amd64.tar.gz && \
+	tar xf golangci-lint.tar.gz && \
+	mv golangci-lint-1.32.1-linux-amd64/golangci-lint /usr/bin/golangci-lint && \
+	chmod +x /usr/bin/golangci-lint
